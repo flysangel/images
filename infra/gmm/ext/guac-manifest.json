@@ -1,0 +1,18 @@
+{
+    "guacamoleVersion": "*",
+    "name": "gmm",
+    "namespace": "gmm",
+    "smallIcon": "images/LOGO/logo-64.png",
+    "largeIcon": "images/LOGO/logo-144.png",
+    "translations": [
+        "translations/en.json"
+    ],
+    "css": [
+        "css/login-override.css"
+    ],
+    "resources": {
+        "images/LOGO/logo.png": "image/png",
+        "images/LOGO/logo-64.png": "image/png",
+        "images/LOGO/logo-144.png": "image/png"
+    }
+}

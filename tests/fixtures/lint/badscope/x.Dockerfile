@@ -1,0 +1,4 @@
+ARG SERVICE_VERSION
+FROM scratch AS a
+FROM scratch
+RUN echo ${SERVICE_VERSION}

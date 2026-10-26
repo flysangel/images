@@ -1,0 +1,43 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  namespace: svc
+  name: skopeo
+  labels:
+    app: skopeo
+spec:
+  # 沒設 timeZone，照控制器的時區跑；控制器是 UTC 時 20:00 等於台灣 04:00
+  schedule: "0 20 * * *"
+  # 一輪要跑 8 到 12 小時：上一輪沒跑完不起新的，失敗也不整批重跑
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          containers:
+          - name: skopeo
+            image: skopeo
+            # 靠 tag 帶版號且不覆寫；tag 被重推時節點不會更新
+            imagePullPolicy: IfNotPresent
+            command:
+            - /bin/bash
+            - /opt/sync/bin/start.sh
+            envFrom:
+            - secretRef:
+                name: skopeo-registry-creds
+            volumeMounts:
+            - name: script
+              mountPath: /opt/sync/bin
+              readOnly: true
+            - name: rules
+              mountPath: /opt/sync/repository
+              readOnly: true
+          restartPolicy: Never
+          volumes:
+          - name: script
+            configMap:
+              name: skopeo-script
+          - name: rules
+            configMap:
+              name: skopeo-rules

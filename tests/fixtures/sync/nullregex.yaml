@@ -1,0 +1,4 @@
+# tag regex 是 null(打錯:寫了 image 名卻忘了 regex)
+docker.io:
+  images-by-tag-regex:
+    library/alpine:

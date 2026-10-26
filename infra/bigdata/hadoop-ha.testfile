@@ -1,0 +1,10 @@
+#!/bin/bash
+# 煙霧測試 for bigdata:hadoop-ha-vX —— 驗 HA hdstart(journalnode/zkfc) 已裝 + Hadoop 3.4.0
+set -euo pipefail
+img_tag="${1:?usage: bash testfile <family>:<tag>}"
+echo "[test] ${img_tag}"
+out="$(sudo podman run --rm "${REGISTRY_PREFIX:?}/${img_tag}" bash -lc 'grep -qE "journalnode|zkfc" /bin/hdstart && echo HA-hdstart-ok; hadoop version' 2>&1)" || true
+echo "${out}"
+grep -q 'HA-hdstart-ok' <<<"${out}" || { echo "[FAIL] HA hdstart 未裝" >&2; exit 1; }
+grep -q 'Hadoop 3\.4\.0' <<<"${out}" || { echo "[FAIL] Hadoop 3.4.0 未找到" >&2; exit 1; }
+echo "[OK] ${img_tag} hadoop-ha 煙霧測試通過"

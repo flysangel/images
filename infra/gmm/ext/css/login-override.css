@@ -1,0 +1,11 @@
+.login-ui .login-dialog .logo {
+    /* 路徑裡的 gmm 是 guac-manifest.json 的 namespace，改 namespace 要一起改 */
+    background-image: url('app/ext/gmm/images/LOGO/logo.png');
+    -webkit-background-size: 7em auto;
+    width: 7em;
+    height: 7em;
+}
+
+.login-ui .login-dialog {
+    max-width: 3.5in;
+}

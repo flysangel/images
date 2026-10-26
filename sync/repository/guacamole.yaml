@@ -1,0 +1,4 @@
+docker.io:
+  images-by-tag-regex:
+    guacamole/guacamole: ^([0-9.]+|latest)$
+    guacamole/guacd: ^([0-9.]+|latest)$

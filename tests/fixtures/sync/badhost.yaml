@@ -1,0 +1,4 @@
+# start.sh 不會登入的主機:匿名拉取私有 registry 會 401,而 401 也是靜默 skip
+registry.gitlab.invalid:
+  images-by-tag-regex:
+    group/app: ^(latest)$

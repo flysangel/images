@@ -1,0 +1,10 @@
+{
+    "port": 4000,
+    "baseURL": "",
+    "address": "",
+    "database": "/filebrowser/database.db",
+    "log": "/filebrowser/log",
+    "root": "/filebrowser/user/admin",
+    "username": "admin",
+    "_password": "admin"
+}

@@ -1,0 +1,1 @@
+FROM ${REGISTRY_PREFIX}/badmissing:nosuch-${SERVICE_VERSION}

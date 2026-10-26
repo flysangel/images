@@ -1,0 +1,4 @@
+ARG SERVICE_VERSION
+FROM scratch
+RUN echo a \
+  && echo ${SERVICE_VERSION}

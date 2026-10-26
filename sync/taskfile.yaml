@@ -1,0 +1,37 @@
+version: '3'
+
+set: [errexit, nounset, pipefail]
+
+tasks:
+
+  mirror:
+    desc: '[維運] 執行 skopeo 上游映像同步'
+    summary: |
+      讀 sync/repository/*.yaml 清單，逐一用 skopeo sync 把上游映像同步到自家 registry（目的地為自家 registry，可用 DEST= 覆寫）。
+      登入 sync/bin/start.sh 登入段列出的上游 registry，帳密由 sync/secret/secret.env 或 env 提供；必要帳密缺任一即 fail-fast。GHCR 可選，沒有帳密就匿名拉取。
+      每個規則檔最多試 3 次、每次間隔 30 秒，skopeo 自己再對每顆映像重試；最終仍失敗就跳過、續跑下一檔。全部跑完後若有失敗，列出失敗的規則檔並以非零結束。
+      與叢集裡的 skopeo CronJob 跑同一套 start.sh，此 task 為本機直接執行版。
+    dir: '{{.ROOT_DIR}}'
+    dotenv: ['sync/secret/secret.env']
+    cmds:
+      - bash sync/bin/start.sh
+
+  apply:namespace:
+    desc: '[維運] 把 namespace svc 套進叢集（apply:cronjob 的前置）'
+    summary: |
+      namespace svc 已存在時不報錯，可以重跑。
+    dir: '{{.ROOT_DIR}}'
+    cmds:
+      - kubectl create ns svc --dry-run=client -o yaml | kubectl apply -f -
+
+  apply:cronjob:
+    desc: '[維運] 套用 CronJob 到叢集（kubectl apply -k）'
+    summary: |
+      infra-k8s 用；憑證由 sync/secret/ 的 secretGenerator 從 gitignored 的 secret.env 生成 Secret skopeo-registry-creds，範本見 sync/secret/secret.env.example。真值檔缺席時 apply -k 會 rc=1（evalsymlink failure），這是刻意的——不讓佔位憑證被 apply 進叢集。
+      namespace svc 要先存在，沒有就先跑 task apply:namespace。
+      入口是 sync/kustomization.yaml：規則檔與 start.sh 由 configMapGenerator 打包成 ConfigMap 掛進 CronJob，叢集端跑的就是執行本 task 那份 checkout 的內容，正式套用從 main 執行。套用前先跑 bash tests/test_cronjob.sh。
+    dir: '{{.ROOT_DIR}}'
+    preconditions:
+      - { sh: "kubectl get ns svc >/dev/null 2>&1", msg: "namespace svc 不存在，先跑 task apply:namespace" }
+    cmds:
+      - kubectl apply -k sync

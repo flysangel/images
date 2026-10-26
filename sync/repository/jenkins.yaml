@@ -1,0 +1,4 @@
+docker.io:
+  images-by-tag-regex:
+    jenkins/jenkins: ^([0-9.]+-lts-alpine|latest)$
+    jenkins/inbound-agent: ^([0-9a-z_.-]+alpine-jdk[0-9]+|latest)$

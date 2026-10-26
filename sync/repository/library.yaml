@@ -1,0 +1,13 @@
+docker.io:
+  images-by-tag-regex:
+    library/traefik: ^(v[0-9.]+|latest)$
+    library/busybox: ^([0-9.]+|latest)$
+    library/alpine: ^([0-9.]+|latest)$
+    library/ubuntu: ^([0-9.]+|latest)$
+    library/nginx: ^([0-9.]+|latest)$
+    library/mariadb: ^([0-9.]+|latest)$
+    library/postgres: ^([0-9.]+|latest)$
+    library/redis: ^([0-9.]+|[0-9.]+-alpine|latest)$
+    library/golang: ^([0-9.]+-alpine|alpine[0-9.]+|latest)$
+    library/openjdk: ^([0-9.]+-alpine|latest)$
+    library/memcached: ^([0-9.]+-alpine|latest)$

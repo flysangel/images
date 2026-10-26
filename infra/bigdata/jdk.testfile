@@ -1,0 +1,9 @@
+#!/bin/bash
+# 煙霧測試 for bigdata:jdk-vX —— 驗 OpenJDK 8（Eclipse Temurin 8u492）在 PATH
+set -euo pipefail
+img_tag="${1:?usage: bash testfile <family>:<tag>}"
+echo "[test] ${img_tag}"
+out="$(sudo podman run --rm "${REGISTRY_PREFIX:?REGISTRY_PREFIX 未設（img.sh test 注入）}/${img_tag}" bash -lc 'java -version' 2>&1)" || true
+echo "${out}"
+grep -q '1\.8\.0_492' <<<"${out}" || { echo "[FAIL] OpenJDK 1.8.0_492 未找到" >&2; exit 1; }
+echo "[OK] ${img_tag} jdk 煙霧測試通過"

@@ -1,0 +1,79 @@
+# 罐頭 kustomize 產物，供 test_cronjob.sh 的自我檢查用（不需 kubectl）。
+# 形狀照 kubectl kustomize sync 的真產物：legacy sort（ConfigMap、Secret、CronJob）、兩空白縮排、序列與鍵同層。
+# 值是假的：Secret.data 是無意義短 base64，規則只留 alpha.yaml 與 beta.yaml，start.sh 只留一行，image 的 tag 用 v9.9.9。
+# 重產：cp -r sync 到暫存目錄，把 secret/secret.env.example 複製成 secret/secret.env，跑 kubectl kustomize，
+# 再把兩個 ConfigMap 與 Secret 的 data 換成上述假值、image 的 tag 換成 podman-v9.9.9，其餘照抄。
+apiVersion: v1
+data:
+  alpha.yaml: |
+    docker.io:
+      images-by-tag-regex:
+        library/alpha: ^1$
+  beta.yaml: |
+    quay.io:
+      images-by-tag-regex:
+        org/beta: ^1$
+kind: ConfigMap
+metadata:
+  name: skopeo-rules
+  namespace: svc
+---
+apiVersion: v1
+data:
+  start.sh: |
+    #!/bin/bash
+kind: ConfigMap
+metadata:
+  name: skopeo-script
+  namespace: svc
+---
+apiVersion: v1
+data:
+  QUAY_PASSWORD: cA==
+  QUAY_USERNAME: dQ==
+kind: Secret
+metadata:
+  name: skopeo-registry-creds
+  namespace: svc
+type: Opaque
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  labels:
+    app: skopeo
+  name: skopeo
+  namespace: svc
+spec:
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          containers:
+          - command:
+            - /bin/bash
+            - /opt/sync/bin/start.sh
+            envFrom:
+            - secretRef:
+                name: skopeo-registry-creds
+            image: quay.io/flysangel/alpine:podman-v9.9.9
+            imagePullPolicy: IfNotPresent
+            name: skopeo
+            volumeMounts:
+            - mountPath: /opt/sync/bin
+              name: script
+              readOnly: true
+            - mountPath: /opt/sync/repository
+              name: rules
+              readOnly: true
+          restartPolicy: Never
+          volumes:
+          - configMap:
+              name: skopeo-script
+            name: script
+          - configMap:
+              name: skopeo-rules
+            name: rules
+  schedule: 0 20 * * *

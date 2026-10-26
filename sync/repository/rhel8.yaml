@@ -1,0 +1,3 @@
+registry.redhat.io:
+  images-by-tag-regex:
+    rhel8/redis-6: ^([0-9.]+-[0-9.]+|latest)$

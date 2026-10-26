@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# set hiverc：只對 CMD 執行當下已存在的 /home/* 生效，之後新增的使用者沒有
+for user in $(ls /home); do
+  echo "
+set hive.cli.print.current.db=true;
+set hive.metastore.warehouse.dir=/user/${user}/hive;
+set hive.exec.scratchdir=/user/${user}/tmp;
+" | sudo tee /home/"${user}"/.hiverc
+done

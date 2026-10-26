@@ -1,0 +1,9 @@
+#!/bin/bash
+# 煙霧測試 for landlord:logger-vX —— 驗 mysql-client + log_server 就位
+set -euo pipefail
+img_tag="${1:?usage: bash testfile <family>:<tag>}"
+echo "[test] ${img_tag}"
+out="$(sudo podman run --rm --entrypoint /bin/bash "${REGISTRY_PREFIX:?}/${img_tag}" -c 'command -v mysql; ls /bin/log_server' 2>&1)" || true
+echo "${out}"
+grep -q '/bin/log_server' <<<"${out}" && grep -q 'mysql' <<<"${out}" || { echo "[FAIL] logger mysql/log_server 缺" >&2; exit 1; }
+echo "[OK] ${img_tag} logger 煙霧測試通過"

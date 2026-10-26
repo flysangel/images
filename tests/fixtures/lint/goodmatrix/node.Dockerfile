@@ -1,0 +1,4 @@
+# KUBERNETES_VERSION 是 matrix 衍生鍵(值由 NODES 的單格迭代經 CLI 覆寫傳入,conf 內無此字面鍵)
+FROM ${UPSTREAM_DOCKER}/kindest/node:v1.33.0
+ARG KUBERNETES_VERSION
+RUN echo "${KUBERNETES_VERSION}"

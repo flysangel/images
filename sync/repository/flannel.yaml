@@ -1,0 +1,4 @@
+docker.io:
+  images-by-tag-regex:
+    flannel/flannel: ^(v[0-9.]+|latest)$
+    flannel/flannel-cni-plugin: ^(v[0-9.]+-flannel[0-9]+|latest)$

@@ -1,0 +1,4 @@
+# 非預期的第二層鍵(打錯或誤用 skopeo 的 images: 形態)
+docker.io:
+  images:
+    library/alpine: [latest]

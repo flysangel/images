@@ -1,0 +1,5 @@
+# 正向:單主機、兩條規則
+docker.io:
+  images-by-tag-regex:
+    library/alpine: ^([0-9.]+|latest)$
+    minio/mc: ^(latest)$

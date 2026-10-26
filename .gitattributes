@@ -1,0 +1,5 @@
+# 工具檔強制 LF：CRLF 化的 bash 腳本會把行尾的 \r 當成指令或引數的一部分
+*.sh text eol=lf
+*.py text eol=lf
+# 樞紐檔 config/versions.conf：讀取端有 tr -d '\r'（見 infra/bin/img.sh build_args、tests/test_img.sh Case 40）；強制 LF 是另一層保護，給沒過濾的新讀取端用。樣式不帶斜線，也涵蓋各 family 的 versions.conf
+versions.conf text eol=lf

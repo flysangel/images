@@ -1,0 +1,30 @@
+#!/bin/bash
+# 煙霧測試 for gmm:guacamole-vX (Tomcat + guacamole.war)
+set -euo pipefail
+
+img_tag="${1:?usage: bash testfile <family>:<tag>}"
+echo "[test] starting ${img_tag}"
+
+sudo podman run --rm --privileged --network bridge --name repotest -d "${REGISTRY_PREFIX:?REGISTRY_PREFIX 未設(由 img.sh test/ci 注入,或先 export)}/${img_tag}"
+trap 'sudo podman stop repotest >/dev/null 2>&1 || true' EXIT
+
+# 等 tomcat 啟動（最多 60s)
+# Tomcat upstream image 不裝 ss/netstat,改用 curl 做 HTTP probe
+for _ in $(seq 1 30); do
+    if sudo podman exec repotest sh -c 'curl -s --max-time 2 -o /dev/null http://localhost:8080/'; then
+        break
+    fi
+    sleep 2
+done
+
+# 1) Tomcat :8080 reachable (任何 HTTP response 皆代表 socket alive)
+sudo podman exec repotest sh -c 'curl -s --max-time 5 -o /dev/null http://localhost:8080/' \
+    || { echo "[FAIL] tomcat not responding on :8080" >&2; exit 1; }
+
+# 2) guacamole webapp 部署(image 固定置於 /opt/guacamole/webapp/,runtime 由 entrypoint
+# 複製到動態 catalina-base webapps;檢查 image-time 路徑最穩定)
+sudo podman exec repotest sh -c \
+    'test -f /opt/guacamole/webapp/guacamole.war' \
+    || { echo "[FAIL] /opt/guacamole/webapp/guacamole.war missing" >&2; exit 1; }
+
+echo "[OK] ${img_tag} smoke test passed"

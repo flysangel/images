@@ -1,0 +1,4 @@
+# 檔名含大寫與底線:start.sh 拿 basename 當同步目標 repo 名,不是合法 path 段
+docker.io:
+  images-by-tag-regex:
+    library/alpine: ^(latest)$

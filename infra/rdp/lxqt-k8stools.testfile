@@ -1,0 +1,42 @@
+#!/bin/bash
+# 煙霧測試 for rdp:lxqt-k8stools-vX
+# 桌面層同 rdp:lxqt(xrdp+sshd),額外確認 k8s 工具集 binary
+# 略過 host-xfreerdp 端到端(RDP 協定路徑由 rdp:lxqt base testfile 涵蓋,此層只加工具未動 xrdp)
+set -euo pipefail
+
+img_tag="${1:?usage: bash testfile <family>:<tag>}"
+echo "[test] starting ${img_tag}"
+
+sudo podman run --rm --privileged --network bridge --name repotest -d "${REGISTRY_PREFIX:?REGISTRY_PREFIX 未設(由 img.sh test/ci 注入,或先 export)}/${img_tag}"
+trap 'sudo podman stop repotest >/dev/null 2>&1 || true' EXIT
+
+# 等 xrdp 與 sshd 起來(最多 90s)
+for _ in $(seq 1 45); do
+    if sudo podman exec repotest sh -c \
+        'ss -lnt 2>/dev/null | grep -q :3389 && ss -lnt 2>/dev/null | grep -q :22'; then
+        break
+    fi
+    sleep 2
+done
+
+# 1) xrdp :3389 listen
+sudo podman exec repotest sh -c 'ss -lnt 2>/dev/null | grep :3389' >/dev/null \
+    || { echo "[FAIL] xrdp not listening on :3389" >&2; exit 1; }
+
+# 2) sshd :22 listen + bigred ssh 連通
+sudo podman exec repotest sh -c 'ss -lnt 2>/dev/null | grep :22' >/dev/null \
+    || { echo "[FAIL] sshd not listening on :22" >&2; exit 1; }
+
+ip="$(sudo podman inspect repotest | jq -r '.[0].NetworkSettings.IPAddress')"
+sshpass -p bigred ssh \
+    -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+    "bigred@${ip}" 'echo ssh test ok' \
+    || { echo "[FAIL] ssh login failed for bigred@${ip}" >&2; exit 1; }
+
+# 3) k8s 工具集 binary
+for bin in kind kubectl helm kustomize hadolint; do
+    sudo podman exec repotest sh -c "command -v ${bin}" >/dev/null \
+        || { echo "[FAIL] ${bin} not in PATH" >&2; exit 1; }
+done
+
+echo "[OK] ${img_tag} smoke test passed"

@@ -1,0 +1,5 @@
+#!/bin/bash
+# lab／demo 預設憑證，刻意入庫，不是漏洞。正式部署前必須覆寫，不要新增同類明文。
+# beeline 連線字串帶明文密碼。
+
+beeline -u jdbc:hive2://${HIVESERVER2}:10000 --verbose=true -n hive -p mymariadbhive

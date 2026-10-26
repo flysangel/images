@@ -1,0 +1,10 @@
+#!/bin/bash
+# 煙霧測試 for bigdata:hiveDB-vX —— 驗 mariadb 二進位 + 自家 init SQL 已 COPY
+set -euo pipefail
+img_tag="${1:?usage: bash testfile <family>:<tag>}"
+echo "[test] ${img_tag}"
+out="$(sudo podman run --rm --entrypoint bash "${REGISTRY_PREFIX:?}/${img_tag}" -lc 'command -v mariadbd mysqld mariadb mysql 2>/dev/null | head -1; echo ---SQL---; cat /docker-entrypoint-initdb.d/hive-patch.mysql.sql' 2>&1)" || true
+echo "${out}"
+grep -qE '(mariadbd|mysqld|mariadb|mysql)$' <<<"${out}" || { echo "[FAIL] mariadb 二進位不存在" >&2; exit 1; }
+grep -q 'NO_BACKSLASH_ESCAPES' <<<"${out}" || { echo "[FAIL] init SQL 未 COPY/缺 sql_mode 修復" >&2; exit 1; }
+echo "[OK] ${img_tag} hiveDB 煙霧測試通過"

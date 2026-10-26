@@ -1,0 +1,9 @@
+#!/bin/bash
+# 煙霧測試 for bigdata:spark-vX —— 驗 Spark 3.5.1
+set -euo pipefail
+img_tag="${1:?usage: bash testfile <family>:<tag>}"
+echo "[test] ${img_tag}"
+out="$(sudo podman run --rm "${REGISTRY_PREFIX:?}/${img_tag}" bash -lc 'spark-submit --version' 2>&1)" || true
+echo "${out}"
+grep -q '3\.5\.1' <<<"${out}" || { echo "[FAIL] Spark 3.5.1 未找到" >&2; exit 1; }
+echo "[OK] ${img_tag} spark 煙霧測試通過"

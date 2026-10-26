@@ -1,0 +1,5 @@
+quay.io:
+  images-by-tag-regex:
+    cilium/cilium: ^v[0-9.]+$
+    cilium/operator-generic: ^v[0-9.]+$
+    cilium/cilium-envoy: ^v[0-9.]+.*$

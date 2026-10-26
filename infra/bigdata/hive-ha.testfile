@@ -1,0 +1,10 @@
+#!/bin/bash
+# 煙霧測試 for bigdata:hive-ha-vX —— 驗 HA hadoop conf 已疊(nameservices) + hive 執行檔
+set -euo pipefail
+img_tag="${1:?usage: bash testfile <family>:<tag>}"
+echo "[test] ${img_tag}"
+out="$(sudo podman run --rm "${REGISTRY_PREFIX:?}/${img_tag}" bash -lc 'grep -rq "dfs.nameservices" /conf/hadoop-3.4.0/etc/hadoop/hdfs-site.xml && echo HA-conf-ok; test -x "$HIVE_HOME/bin/hive" && echo hive-bin-ok' 2>&1)" || true
+echo "${out}"
+grep -q 'HA-conf-ok' <<<"${out}" || { echo "[FAIL] HA hadoop conf 未疊" >&2; exit 1; }
+grep -q 'hive-bin-ok' <<<"${out}" || { echo "[FAIL] hive 執行檔不存在" >&2; exit 1; }
+echo "[OK] ${img_tag} hive-ha 煙霧測試通過"

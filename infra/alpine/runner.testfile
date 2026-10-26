@@ -1,0 +1,11 @@
+#!/bin/bash
+# 煙霧測試 for alpine:runner-vX —— 驗 clone-and-run cronjob 工具（git/task/jq/nslookup/curl）就位
+set -euo pipefail
+img_tag="${1:?usage: bash testfile <family>:<tag>}"
+echo "[test] ${img_tag}"
+out="$(sudo podman run --rm "${REGISTRY_PREFIX:?}/${img_tag}" bash -lc 'command -v git task jq nslookup curl; task --version' 2>&1)" || true
+echo "${out}"
+for need in git task jq nslookup curl; do
+  grep -q "${need}" <<<"${out}" || { echo "[FAIL] runner 缺 ${need}" >&2; exit 1; }
+done
+echo "[OK] ${img_tag} runner 煙霧測試通過"

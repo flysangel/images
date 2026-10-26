@@ -1,0 +1,34 @@
+#!/bin/bash
+# 煙霧測試 for gmm:mariadb-vX (Guacamole 用，含 schema 初始化)
+set -euo pipefail
+
+img_tag="${1:?usage: bash testfile <family>:<tag>}"
+echo "[test] starting ${img_tag}"
+
+sudo podman run --rm --privileged --network bridge --name repotest \
+    -e MARIADB_ROOT_PASSWORD=dummypass \
+    -e MARIADB_DATABASE=guacamole_db \
+    -d "${REGISTRY_PREFIX:?REGISTRY_PREFIX 未設(由 img.sh test/ci 注入,或先 export)}/${img_tag}"
+trap 'sudo podman stop repotest >/dev/null 2>&1 || true' EXIT
+
+# mariadb 啟動較慢（schema 初始化），等最多 90s
+# mariadb 12.x 已將 mysqladmin 改名為 mariadb-admin
+for _ in $(seq 1 45); do
+    if sudo podman exec repotest sh -c \
+        'mariadb-admin ping -uroot -pdummypass 2>&1 | grep -q "is alive"' >/dev/null 2>&1; then
+        break
+    fi
+    sleep 2
+done
+
+# 1) mariadb-admin ping 成功
+sudo podman exec repotest sh -c \
+    'mariadb-admin ping -uroot -pdummypass 2>&1 | grep -q "is alive"' \
+    || { echo "[FAIL] mariadb-admin ping failed" >&2; exit 1; }
+
+# 2) guacamole_db 已建立(mariadb image 不裝 ss/netstat,改用 SQL 驗證 connectivity)
+sudo podman exec repotest sh -c \
+    'mariadb -uroot -pdummypass -e "SHOW DATABASES" 2>&1 | grep -q "guacamole_db"' \
+    || { echo "[FAIL] guacamole_db not present (mariadb may not be reachable on :3306)" >&2; exit 1; }
+
+echo "[OK] ${img_tag} smoke test passed"

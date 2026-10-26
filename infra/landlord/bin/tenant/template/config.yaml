@@ -1,0 +1,20 @@
+apiVersion: v1
+clusters:
+  - cluster:
+      #insecure-skip-tls-verify: true
+      certificate-authority-data: ${CA}
+      server: https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}
+    name: ${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}
+contexts:
+  - context:
+      cluster: ${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}
+      namespace: ${KUSER}
+      user: ${KUSER}
+    name: ${KUSER}
+current-context: ${KUSER}
+kind: Config
+preferences: {}
+users:
+  - name: ${KUSER}
+    user:
+      token: ${TOKEN}

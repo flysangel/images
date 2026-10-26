@@ -1,0 +1,4 @@
+docker.io:
+  images-by-tag-regex:
+    chrislusf/seaweedfs: ^([0-9.]+|latest)$
+    chrislusf/seaweedfs-csi-driver: ^(v[0-9.]+|latest)$

@@ -1,0 +1,15 @@
+#!/bin/bash
+
+log() {
+  echo "$(date "+%Y-%m-%d %H:%M:%S") INFO ${1}"
+}
+
+if echo "${WORKERNODE}" | grep -qw "$(hostname)"; then
+  hbase-daemon.sh stop regionserver
+  sleep "${WAIT}" && jps -m | grep -q 'HRegionServer' || log "Stopped HRegionServer on [$(hostname)]"
+fi
+
+if echo "${HBASE}" | grep -qw "$(hostname)"; then
+  hbase-daemon.sh stop master
+  sleep "${WAIT}" && jps -m | grep -q 'HMaster' || log "Stopped HMaster on [$(hostname)]"
+fi

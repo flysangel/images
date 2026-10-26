@@ -1,0 +1,30 @@
+#!/bin/bash
+
+log() {
+  echo "$(date "+%Y-%m-%d %H:%M:%S") INFO ${1}"
+}
+
+waitserver() {
+  while true; do
+    log "Wait ${1}"
+    ping -c 2 "${1}" &>/dev/null && break
+    sleep "${WAIT}"
+  done
+}
+
+echo "${MSSQLDB}" "${HIVEMETASTORE}" "${HIVESERVER2}" |
+  xargs -n 1 | while read -r server; do
+  waitserver "${server}"
+done
+
+if echo "${HIVEMETASTORE}" | grep -qw "$(hostname)"; then
+  # 每次啟動都跑 initSchema 並忽略結果：schema 已存在時失敗屬預期，第一次啟動靠它建 schema；log 在 /tmp
+  schematool -dbType mysql -initSchema -verbose &>/tmp/hive-initSchema.log
+  hive --service metastore &>/tmp/hive-metastore.log &
+  sleep "${WAIT}" && jps -m | grep -q 'HiveMetaStore' && log "Started HiveMetaStore on [$(hostname)]"
+fi
+
+if echo "${HIVESERVER2}" | grep -qw "$(hostname)"; then
+  hive --service hiveserver2 &>/tmp/hive-hiveserver2.log &
+  sleep "${WAIT}" && jps -m | grep -q 'HiveServer2' && log "Started HiveServer2 on [$(hostname)]"
+fi

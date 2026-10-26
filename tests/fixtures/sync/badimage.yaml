@@ -1,0 +1,4 @@
+# image 名不是 <namespace>/<name> 形狀
+docker.io:
+  images-by-tag-regex:
+    alpine: ^(latest)$

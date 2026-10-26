@@ -1,0 +1,172 @@
+version: '3'
+
+set: [errexit, nounset, pipefail]
+
+includes:
+  sync:
+    taskfile: ./sync/taskfile.yaml
+    optional: true
+    flatten: true
+
+tasks:
+  default:
+    cmds:
+      - echo 'task dev      開發：改 code 時跑的檢查、建置與實測'
+      - echo 'task ops      維運：同步上游映像、套用叢集設定'
+      - echo 'task release  發版：推映像、產生與查核 manifest'
+    silent: true
+
+  dev:
+    cmds:
+      - task --list-all | grep -F '[開發]'
+    silent: true
+
+  ops:
+    cmds:
+      - task --list-all | grep -F '[維運]'
+    silent: true
+
+  release:
+    cmds:
+      - task --list-all | grep -F '[發版]'
+    silent: true
+
+  doctor:
+    desc: '[開發] 檢查執行環境：命令存在與種類、core.hooksPath 來源，不安裝'
+    cmds:
+      - bash bin/doctor.sh
+
+  lint:
+    desc: '[開發] 離線靜態檢查：四大文件、Taskfile、lint:family、同步規則、shellcheck'
+    cmds:
+      - python3 bin/check-docs.py
+      - python3 bin/check-taskfile.py
+      - task: lint:family
+      - python3 bin/sync-lint.py sync/repository/*.yaml
+      - shellcheck -S warning infra/bin/img.sh sync/bin/start.sh bin/doctor.sh .githooks/pre-push tests/*.sh tests/fixtures/stubs/*
+
+  test:
+    desc: '[開發] 離線測試：tests/ 的每一支（stub 攔截 podman、skopeo、sudo，不碰網路）'
+    preconditions:
+      - { sh: "[ -x tests/fixtures/stubs/podman ] && [ -x tests/fixtures/stubs/skopeo ] && [ -x tests/fixtures/stubs/sudo ]", msg: "tests/fixtures/stubs/ 有 stub 沒有執行位元，test_img.sh 會呼叫真的 sudo、podman 或 skopeo；先 chmod +x tests/fixtures/stubs/*" }
+    cmds:
+      - bash tests/test_family_lint.sh
+      - bash tests/test_img.sh
+      - bash tests/test_sync_lint.sh
+      - bash tests/test_sync_start.sh
+      - bash tests/test_cronjob.sh
+
+  lint:family:
+    desc: '[開發] 驗各 family 的 versions.conf 是否符合 schema（用法：task lint:family FAMILY_VERSIONS=<glob>）'
+    summary: |
+      驗 per-family versions.conf（build 值表的燃料）schema，兩種互斥形態：非-matrix 需 SERVICE_VERSION+CHAIN；matrix（如 taroko）用 NODES+SERVERS_* 且禁 SERVICE_VERSION/CHAIN。另驗文法：conf 會被 source，等同可執行程式碼——含空白的值必須加雙引號，值不得含 $ 或反引號。FAMILY_VERSIONS 預設掃 infra/*/versions.conf。config/versions.conf 不在本 task 範圍。
+    cmds:
+      - python3 bin/family-lint.py {{.FAMILY_VERSIONS | default "infra/*/versions.conf"}}
+
+
+  build:image:
+    desc: '[開發] build（保留映像，不測）；用法：task build:image -- <family> [service] [KEY=VAL]'
+    summary: |
+      建映像但不測、保留。只給 family＝整條 chain 逐顆建;給 service＝單顆。
+      想連測用 try:image,想測完即棄控 disk 用 ci:image。KEY=VAL 需搭 service。
+    preconditions:
+      - sh: "[ -n '{{.CLI_ARGS}}' ]"
+        msg: "用法：task build:image -- <family> [service] [KEY=VAL]（未提供參數）"
+    cmds:
+      - bash infra/bin/img.sh build {{.CLI_ARGS}}
+
+  smoke:image:
+    desc: '[開發] 對已建映像跑 testfile（不建不刪）；用法：task smoke:image -- <family> [service]'
+    summary: |
+      對已建映像跑 testfile,不建不刪(需先 build:image)。
+      只給 family＝整條 chain 逐顆測;給 service＝單顆。taroko 無 testfile,略過。
+    preconditions:
+      - sh: "[ -n '{{.CLI_ARGS}}' ]"
+        msg: "用法：task smoke:image -- <family> [service]（未提供參數）"
+    cmds:
+      - bash infra/bin/img.sh test {{.CLI_ARGS}}
+
+  try:image:
+    desc: '[開發] 組合：build:image → smoke:image，保留映像（主開發迴圈）；用法：task try:image -- <family> [service] [KEY=VAL]'
+    summary: |
+      組合 task，只呼叫 build:image 與 smoke:image，兩步都保留映像。
+      只給 family＝整條 chain 先逐顆建、再逐顆測(改 base 後重建整條 chain 用這個);給 service＝單顆。
+      與 ci:image 只差:try:image 保留、ci:image 測完即刪。taroko 無 testfile,smoke 那步略過。
+      非 taroko 的映像缺 testfile 時,smoke:image 會報錯停下(img.sh 的 dev、ci 子命令會略過)。
+    preconditions:
+      - sh: "[ -n '{{.CLI_ARGS}}' ]"
+        msg: "用法：task try:image -- <family> [service] [KEY=VAL]（未提供參數）"
+    cmds:
+      - task: build:image
+      - task: smoke:image
+
+  ci:image:
+    desc: '[開發] 組合：build:image → smoke:image → clean:image（驗證即棄、測完即刪控 disk）；用法：task ci:image -- <family> [service] [KEY=VAL]'
+    summary: |
+      組合 task，依序呼叫 build:image、smoke:image、clean:image。
+      任一步失敗就停，後面不跑，已建映像保留供 debug;全過才刪。
+      給 service＝單顆。與 try:image 只差 ci:image 測完即刪。KEY=VAL 需搭 service。
+      非 taroko 的映像缺 testfile 時,smoke:image 會報錯停下(img.sh 的 dev、ci 子命令會略過)。
+      taroko 走 matrix,經本 task 會先建完整個 matrix 才刪,磁碟峰值約 30 GB,故被下方 preconditions 擋下;
+      要建一格刪一格,改跑 bash infra/bin/img.sh ci taroko。
+    preconditions:
+      - sh: "[ -n '{{.CLI_ARGS}}' ]"
+        msg: "用法：task ci:image -- <family> [service] [KEY=VAL]（未提供參數）"
+      - sh: "printf '%s\n' '{{.CLI_ARGS}}' | grep -qvE '^taroko( |$)'"
+        msg: "taroko 走 matrix，經組合 task 會先建完整個 matrix（約 30 GB）；要建一格刪一格，改跑 bash infra/bin/img.sh ci taroko"
+    cmds:
+      - task: build:image
+      - task: smoke:image
+      - task: clean:image
+
+  generate:manifest:
+    desc: '[發版] 由各 family 的 versions.conf 重新產生 docs/images-manifest.yaml（下游消費的版本清單）'
+    cmds:
+      - bash infra/bin/img.sh manifest
+
+  check:manifest:
+    desc: '[發版] 發版守門：驗 manifest 與 versions.conf 一致且全部 tag 線上存在（過期或缺 tag 即非零）'
+    # 查 registry 要登入，憑證與 check:image 同一份
+    dotenv: ['sync/secret/secret.env']
+    cmds:
+      - bash infra/bin/img.sh manifest --check
+
+  clean:image:
+    desc: '[開發] 移除本機已建映像（用法：task clean:image -- <family> [service]）'
+    summary: |
+      移除本機已建映像(破壞性,可 rebuild/pull 恢復)。
+      只給 family＝掃整族;給 service＝單顆。taroko 走 matrix,不接單 service,一律掃整族全 tag。
+    preconditions:
+      - sh: "[ -n '{{.CLI_ARGS}}' ]"
+        msg: "用法：task clean:image -- <family> [service]（未提供參數）"
+    cmds:
+      - bash infra/bin/img.sh rmi {{.CLI_ARGS}}
+
+  push:image:
+    desc: '[發版] 推送映像上 registry（用法：task push:image -- <family> [service]）'
+    summary: |
+      push 不建映像，須先 build:image 或 try:image 讓本機有該 tag。憑證由本 task 的 dotenv（sync/secret/secret.env）或 env 提供，再做 skopeo login；直接跑 bash infra/bin/img.sh 會繞過 dotenv、拿不到憑證。family＝整條 chain 逐顆推、service＝單顆、taroko 走 matrix。
+    dotenv: ['sync/secret/secret.env']
+    preconditions:
+      - sh: "[ -n '{{.CLI_ARGS}}' ]"
+        msg: "用法：task push:image -- <family> [service]（未提供參數）"
+    cmds:
+      - bash infra/bin/img.sh push {{.CLI_ARGS}}
+
+  pull:image:
+    desc: '[開發] 從 registry 拉映像；用法：task pull:image -- <family> [service]'
+    dotenv: ['sync/secret/secret.env']
+    preconditions:
+      - sh: "[ -n '{{.CLI_ARGS}}' ]"
+        msg: "用法：task pull:image -- <family> [service]（未提供參數）"
+    cmds:
+      - bash infra/bin/img.sh pull {{.CLI_ARGS}}
+
+  check:image:
+    desc: '[發版] 線上查核映像存在（skopeo inspect）；用法：task check:image -- <family> [service]'
+    dotenv: ['sync/secret/secret.env']
+    preconditions:
+      - sh: "[ -n '{{.CLI_ARGS}}' ]"
+        msg: "用法：task check:image -- <family> [service]（未提供參數）"
+    cmds:
+      - bash infra/bin/img.sh exists {{.CLI_ARGS}}

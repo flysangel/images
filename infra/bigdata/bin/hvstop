@@ -1,0 +1,16 @@
+#!/bin/bash
+
+log() {
+  echo "$(date "+%Y-%m-%d %H:%M:%S") INFO ${1}"
+}
+
+if echo "${HIVEMETASTORE}" | grep -qw "$(hostname)"; then
+  # 以 -Dproc_* 標記 pgrep 後 kill，不走 hive 的子命令
+  kill -9 $(pgrep -f "Dproc_metastore")
+  sleep "${WAIT}" && jps -m | grep -q 'HiveMetaStore' || log "Stopped HiveMetaStore on [$(hostname)]"
+fi
+
+if echo "${HIVESERVER2}" | grep -qw "$(hostname)"; then
+  kill -9 $(pgrep -f "Dproc_hiveserver2")
+  sleep "${WAIT}" && jps -m | grep -q 'HiveServer2' || log "Stopped HiveServer2 on [$(hostname)]"
+fi

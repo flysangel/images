@@ -1,0 +1,56 @@
+# docs/images-manifest.yaml — 由 img.sh manifest 衍生;下游釘 images_ref 後 raw 取(本檔不含 images_ref)
+registry_prefix: quay.io/flysangel
+images:
+  alpine:
+    base: base-v1.0.3
+    sshd: sshd-v1.0.3
+    podman: podman-v1.0.3
+    qemu: qemu-v1.0.3
+    s3cli: s3cli-v1.0.3
+    k8stools: k8stools-v1.0.3
+    k8sadm: k8sadm-v1.0.3
+    runner: runner-v1.0.3
+  ubuntu:
+    base: base-v1.0.4
+    sshd: sshd-v1.0.4
+    knife: knife-v1.0.4
+  bigdata:
+    jdk: jdk-v1.0.1
+    zookeeper: zookeeper-v1.0.1
+    kafka: kafka-v1.0.1
+    hadoop: hadoop-v1.0.1
+    hbase: hbase-v1.0.1
+    hive: hive-v1.0.1
+    spark: spark-v1.0.1
+    hadoop-ha: hadoop-ha-v1.0.1
+    hive-ha: hive-ha-v1.0.1
+    hbase-ha: hbase-ha-v1.0.1
+    hiveDB: hiveDB-v1.0.1
+    dtc-ha: dtc-ha-v1.0.1
+  fbs:
+    base: base-v1.0.3
+  open-webui:
+    dbadm: dbadm-v1.0.1
+  rdp:
+    lxqt: lxqt-v1.0.2
+    xfce4: xfce4-v1.0.2
+    lxqt-podman: lxqt-podman-v1.0.2
+    xfce4-podman: xfce4-podman-v1.0.2
+    lxqt-k8stools: lxqt-k8stools-v1.0.2
+    xfce4-k8stools: xfce4-k8stools-v1.0.2
+    lxqt-k8sadm: lxqt-k8sadm-v1.0.2
+    xfce4-k8sadm: xfce4-k8sadm-v1.0.2
+  gmm:
+    guacd: guacd-v1.0.7
+    guacamole: guacamole-v1.0.7
+    mariadb: mariadb-v1.0.7
+  landlord:
+    gateway: gateway-v1.0.3
+    logger: logger-v1.0.3
+    mariadb: mariadb-v1.0.3
+    tenant: tenant-v1.0.3
+    tenant-hadoop: tenant-hadoop-v1.0.3
+  taroko:
+    nodes: [v1.31.0, v1.31.1, v1.31.2, v1.31.4, v1.31.6, v1.31.9, v1.31.12, v1.32.0, v1.32.1, v1.32.2, v1.32.3, v1.32.5, v1.32.8, v1.33.0, v1.33.1, v1.33.2, v1.33.4, v1.34.0]
+    cri-docker: [cri-docker-v1.31, cri-docker-v1.32, cri-docker-v1.33, cri-docker-v1.34]
+    docker: [docker-v1.0.3]

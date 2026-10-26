@@ -1,0 +1,1 @@
+FROM ${REGISTRY_PREFIX}/badorder:app-${SERVICE_VERSION}

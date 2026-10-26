@@ -1,0 +1,28 @@
+#!/bin/bash
+
+log() {
+  echo "$(date "+%Y-%m-%d %H:%M:%S") INFO ${1}"
+}
+
+waitserver() {
+  while true; do
+    log "Wait ${1}"
+    ping -c 2 "${1}" &>/dev/null && break
+    sleep "${WAIT}"
+  done
+}
+
+ZOOKEEPERS=${ZOOKEEPER//:2181/}
+echo "${ZOOKEEPERS//,/ }" |
+  xargs -n 1 | while read -r server; do
+  waitserver "${server}"
+done
+
+if echo "${KFBROKER}" | grep -qw "$(hostname)"; then
+  # 以 --override 蓋 server.properties 的 broker.id 與 listeners，檔內的值只是佔位；主機名必須是 <服務名>-<序號>
+  kafka-server-start.sh -daemon "${KAFKA_HOME}"/config/server.properties \
+    --override broker.id="${HOSTNAME##*-}" \
+    --override listeners=PLAINTEXT://"${HOSTNAME}"."${HOSTNAME%%-*}":9092 \
+    --override advertised.listeners=PLAINTEXT://"${HOSTNAME}"."${HOSTNAME%%-*}":9092
+  sleep "${WAIT}" && jps -m | grep -q 'Kafka' && log "Started Kafka on [$(hostname)]"
+fi

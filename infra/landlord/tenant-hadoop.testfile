@@ -1,0 +1,11 @@
+#!/bin/bash
+# 煙霧測試 for landlord:tenant-hadoop-vX —— 驗 hadoop/hive client + kubectl/podman/mysql + log_client/template/hconfig/hvrc
+set -euo pipefail
+img_tag="${1:?usage: bash testfile <family>:<tag>}"
+echo "[test] ${img_tag}"
+out="$(sudo podman run --rm --entrypoint /bin/bash "${REGISTRY_PREFIX:?}/${img_tag}" -c 'command -v hadoop; command -v hive; command -v kubectl; command -v podman; command -v mysql; ls /bin/log_client /bin/template /bin/hconfig /bin/hvrc' 2>&1)" || true
+echo "${out}"
+for need in hadoop hive kubectl podman mysql /bin/log_client /bin/template /bin/hconfig /bin/hvrc; do
+  grep -q "${need}" <<<"${out}" || { echo "[FAIL] tenant-hadoop 缺 ${need}" >&2; exit 1; }
+done
+echo "[OK] ${img_tag} tenant-hadoop 煙霧測試通過"

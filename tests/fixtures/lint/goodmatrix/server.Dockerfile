@@ -1,0 +1,4 @@
+# KEY_VERSION 是 matrix 衍生鍵,來源鍵是 SERVERS_CRI_DOCKER
+FROM ${UPSTREAM_DOCKER}/library/alpine:3.21
+ARG KEY_VERSION
+RUN echo "${KEY_VERSION}"

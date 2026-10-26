@@ -1,0 +1,26 @@
+# 機密：永不追蹤（執行期由 K8s Secret/SOPS 或本機 .env 注入）
+.env
+*.env
+!.env.example
+!*.env.example
+*.key
+*.pem
+id_rsa*
+**/secrets/
+
+# Python 位元組碼快取:執行 bin/*.py 時自動生成,不入庫(直譯器會重生,零資訊損失)
+__pycache__/
+
+# Phase 3a 硬底線：demo SSH 私鑰（infra/{rdp,taroko}/home/bigred/.ssh/id_rsa）絕不入 public repo
+# ——已實體移除；上方 id_rsa* 為第二道防線（連 id_rsa.pub 一併不追蹤，runtime 由 K8s Secret 注入）。
+# authorized_keys（公鑰清單，不觸機密 hook）仍入庫，供 image-time COPY；對應私鑰 runtime 才放。
+
+# build 產出（render 已 filter 化不落地；保留通用 build/ 作零成本防呆）
+build/
+
+# worktree：開在 .claude/worktrees/
+/.claude/worktrees/
+
+# 本機暫存，不進版控
+/docs/superpowers/
+/docs/tickets/

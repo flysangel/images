@@ -1,0 +1,3 @@
+# 規則表是空的:整檔等於什麼都不同步,但 skopeo 不會抱怨
+docker.io:
+  images-by-tag-regex: {}

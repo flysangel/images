@@ -1,0 +1,5 @@
+# YAML 文法壞掉:縮排不合法
+docker.io:
+  images-by-tag-regex:
+   library/alpine: ^x$
+      minio/mc: ^y$

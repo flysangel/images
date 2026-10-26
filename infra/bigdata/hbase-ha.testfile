@@ -1,0 +1,10 @@
+#!/bin/bash
+# 煙霧測試 for bigdata:hbase-ha-vX —— 驗雙 master hbstart(HBASE_STBY) 已裝 + HBase 2.5.8
+set -euo pipefail
+img_tag="${1:?usage: bash testfile <family>:<tag>}"
+echo "[test] ${img_tag}"
+out="$(sudo podman run --rm "${REGISTRY_PREFIX:?}/${img_tag}" bash -lc 'grep -q HBASE_STBY /bin/hbstart && echo HA-hbstart-ok; hbase version' 2>&1)" || true
+echo "${out}"
+grep -q 'HA-hbstart-ok' <<<"${out}" || { echo "[FAIL] 雙 master hbstart 未裝(無 HBASE_STBY)" >&2; exit 1; }
+grep -q '2\.5\.8' <<<"${out}" || { echo "[FAIL] HBase 2.5.8 未找到" >&2; exit 1; }
+echo "[OK] ${img_tag} hbase-ha 煙霧測試通過"

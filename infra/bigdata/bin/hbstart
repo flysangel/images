@@ -1,0 +1,29 @@
+#!/bin/bash
+
+log() {
+  echo "$(date "+%Y-%m-%d %H:%M:%S") INFO ${1}"
+}
+
+waitserver() {
+  while true; do
+    log "Wait ${1}"
+    ping -c 2 "${1}" &>/dev/null && break
+    sleep "${WAIT}"
+  done
+}
+
+ZOOKEEPERS=${ZOOKEEPER//:2181/}
+echo "${ZOOKEEPERS//,/ }" "${HBASE}" |
+  xargs -n 1 | while read -r server; do
+  waitserver "${server}"
+done
+
+if echo "${HBASE}" | grep -qw "$(hostname)"; then
+  hbase-daemon.sh start master
+  sleep "${WAIT}" && jps -m | grep -q 'HMaster' && log "Started HMaster on [$(hostname)]"
+fi
+
+if echo "${WORKERNODE}" | grep -qw "$(hostname)"; then
+  hbase-daemon.sh start regionserver
+  sleep "${WAIT}" && jps -m | grep -q 'HRegionServer' && log "Started HRegionServer on [$(hostname)]"
+fi

@@ -1,0 +1,25 @@
+#!/bin/bash
+# 假 skopeo for test_img.sh 與 test_sync_start.sh:log 到 PODMAN_LOG(共用命令 log)
+# login → 預設成功；登入目標等於 LOGIN_FAIL_HOST 時失敗（模擬憑證錯）
+# inspect → 依 INSPECT_FAIL_TAG 控 exit(模擬缺 tag)
+# sync → 目的地 repo 名等於 SYNC_FAIL_IMAGE 時失敗；規則檔的頂層主機等於 LOGIN_FAIL_HOST 時也失敗（模擬沒登入拉不到）
+log="${PODMAN_LOG:-/tmp/podman.log}"
+echo "skopeo $*" >> "${log}"
+if [[ "${1}" == "inspect" && -n "${INSPECT_FAIL_TAG:-}" && "$*" == *"${INSPECT_FAIL_TAG}"* ]]; then
+  exit 1
+fi
+if [[ "${1}" == "login" && -n "${LOGIN_FAIL_HOST:-}" && "${!#}" == "${LOGIN_FAIL_HOST}" ]]; then
+  exit 1
+fi
+if [[ "${1}" == "sync" ]]; then
+  # start.sh 的呼叫形狀固定：sync --src yaml --dest docker <規則檔> <目的地> …，第 6、7 個參數即規則檔與目的地
+  rules="${6}"
+  dest="${7}"
+  if [[ -n "${SYNC_FAIL_IMAGE:-}" && "${dest##*/}" == "${SYNC_FAIL_IMAGE}" ]]; then
+    exit 1
+  fi
+  if [[ -n "${LOGIN_FAIL_HOST:-}" ]] && grep -q "^${LOGIN_FAIL_HOST}:" "${rules}"; then
+    exit 1
+  fi
+fi
+exit 0

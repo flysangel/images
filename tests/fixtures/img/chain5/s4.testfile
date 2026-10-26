@@ -1,0 +1,14 @@
+#!/bin/bash
+# 假 testfile:預設 exit 0;TEST_FAIL_SVC=<svc> 配對則 exit 1
+# 讀 stdin 模擬 sshpass ssh 行為 — 若 ci_family 沒用 FD 3,
+# 這裡會吃掉 chain pipe 的內容,造成 loop 提早結束(FD 3 regression case)
+set -euo pipefail
+img_tag="${1:?usage: fake testfile <family>:<tag>}"
+read -r -t 0.05 _ </dev/stdin 2>/dev/null || true
+svc="${img_tag##*:}"
+svc="${svc%%-*}"
+if [[ -n "${TEST_FAIL_SVC:-}" && "${svc}" == "${TEST_FAIL_SVC}" ]]; then
+  echo "[FAKE TESTFILE FAIL] ${img_tag}" >&2
+  exit 1
+fi
+echo "[FAKE TESTFILE OK] ${img_tag}"

@@ -1,0 +1,25 @@
+#!/bin/bash
+# 煙霧測試 for alpine:base-vX
+# 驗 base.txt 安裝的關鍵 binary 與 ntp.txt 設的時區
+set -euo pipefail
+
+img_tag="${1:?usage: bash testfile <family>:<tag>}"
+echo "[test] starting ${img_tag}"
+
+sudo podman run --rm --privileged --network bridge --name repotest -d "${REGISTRY_PREFIX:?REGISTRY_PREFIX 未設(由 img.sh test/ci 注入,或先 export)}/${img_tag}"
+trap 'sudo podman stop repotest >/dev/null 2>&1 || true' EXIT
+
+# 1) 關鍵 binary 應該都裝好（base.txt 列表）
+for bin in sudo bash sshpass jq yq nano tree curl wget git grep setfacl dialog 7z inotifywait nc shellcheck; do
+    sudo podman exec repotest sh -c "command -v ${bin}" >/dev/null \
+        || { echo "[FAIL] ${bin} not in PATH" >&2; exit 1; }
+done
+
+# 2) 時區應為 Asia/Taipei（ntp.txt 設定）
+tz="$(sudo podman exec repotest sh -c 'readlink /etc/localtime || cat /etc/timezone' 2>/dev/null || true)"
+if ! echo "${tz}" | grep -q 'Asia/Taipei'; then
+    echo "[FAIL] timezone not set to Asia/Taipei (got: ${tz})" >&2
+    exit 1
+fi
+
+echo "[OK] ${img_tag} smoke test passed"

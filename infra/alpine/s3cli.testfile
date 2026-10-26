@@ -1,0 +1,31 @@
+#!/bin/bash
+# 煙霧測試（ssh 連通 + 工具 binary 存在）
+set -euo pipefail
+
+img_tag="${1:?usage: bash testfile <family>:<tag>}"
+echo "[test] starting ${img_tag}"
+
+sudo podman run --rm --privileged --network bridge --name repotest -d "${REGISTRY_PREFIX:?REGISTRY_PREFIX 未設(由 img.sh test/ci 注入,或先 export)}/${img_tag}"
+trap 'sudo podman stop repotest >/dev/null 2>&1 || true' EXIT
+
+# 等 sshd 起來
+for _ in $(seq 1 30); do
+    if sudo podman exec repotest sh -c 'ss -lnt 2>/dev/null | grep -q :22 || netstat -lnt 2>/dev/null | grep -q :22'; then
+        break
+    fi
+    sleep 2
+done
+
+ip="$(sudo podman inspect repotest | jq -r '.[0].NetworkSettings.IPAddress')"
+sshpass -p bigred ssh \
+    -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+    "bigred@${ip}" 'echo ssh test ok' \
+    || { echo "[FAIL] ssh login failed for bigred@${ip}" >&2; exit 1; }
+
+# binary 應在 PATH
+for bin in mc weed; do
+    sudo podman exec repotest sh -c "command -v ${bin}" >/dev/null \
+        || { echo "[FAIL] ${bin} not in PATH" >&2; exit 1; }
+done
+
+echo "[OK] ${img_tag} smoke test passed"

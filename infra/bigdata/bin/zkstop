@@ -1,0 +1,6 @@
+#!/bin/bash
+
+if echo "${ZOOKEEPER}" | grep -qw "$(hostname)"; then
+  zkServer.sh stop
+  sleep "${WAIT}" && jps -m | grep -q 'QuorumPeerMain' || echo "Stopped QuorumPeerMain on [$(hostname)]"
+fi

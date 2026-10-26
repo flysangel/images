@@ -1,0 +1,35 @@
+#!/bin/bash
+# 停止順序與啟動相反：WORKERNODE 先停 nodemanager、datanode，再 historyserver、resourcemanager；NameNode 側先停 zkfc 再 namenode，journalnode 最後。
+
+log() {
+  echo "$(date "+%Y-%m-%d %H:%M:%S") INFO ${1}"
+}
+
+if echo "${WORKERNODE}" | grep -qw "$(hostname)"; then
+  yarn --daemon stop nodemanager
+  sleep "${WAIT}" && (jps -m | grep -q 'NodeManager' || log "Stopped NodeManager on [$(hostname)]")
+
+  hdfs --daemon stop datanode
+  sleep "${WAIT}" && (jps -m | grep -q 'DataNode' || log "Stopped DataNode on [$(hostname)]")
+fi
+
+if echo "${HISTORYSERVER}" | grep -qw "$(hostname)"; then
+  mapred --daemon stop historyserver
+  sleep "${WAIT}" && (jps -m | grep -q 'JobHistoryServer' || log "Stopped JobHistoryServer on [$(hostname)]")
+fi
+
+if (echo "${RESOURCEMANAGER}" | grep -qw "$(hostname)") || (echo "${RESOURCEMANAGER_STBY}" | grep -qw "$(hostname)"); then
+  yarn --daemon stop resourcemanager
+  sleep "${WAIT}" && (jps -m | grep -q 'ResourceManager' || log "Stopped ResourceManager on [$(hostname)]")
+fi
+
+if (echo "${NAMENODE}" | grep -qw "$(hostname)") || (echo "${NAMENODE_STBY}" | grep -qw "$(hostname)"); then
+  hdfs --daemon stop zkfc
+  sleep "${WAIT}" && (jps -m | grep -q 'DFSZKFailoverController' || log "Stopped DFSZKFailoverController on [$(hostname)]")
+
+  hdfs --daemon stop namenode
+  sleep "${WAIT}" && (jps -m | grep -q 'NameNode' || log "Stopped NameNode on [$(hostname)]")
+
+  hdfs --daemon stop journalnode
+  sleep "${WAIT}" && (jps -m | grep -q 'JournalNode' || log "Stopped JournalNode on [$(hostname)]")
+fi

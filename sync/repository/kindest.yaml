@@ -1,0 +1,4 @@
+docker.io:
+  images-by-tag-regex:
+    kindest/node: ^(v[0-9.]+|latest)$
+    kindest/haproxy: ^(v[0-9.]+-[a-z0-9]+|latest)$

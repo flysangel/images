@@ -1,0 +1,6 @@
+ghcr.io:
+  images-by-tag-regex:
+    siderolabs/imager: ^(v[0-9.]+|latest)$
+    siderolabs/installer: ^(v[0-9.]+|latest)$
+    siderolabs/talos: ^(v[0-9.]+|latest)$
+    siderolabs/talosctl: ^(v[0-9.]+|latest)$

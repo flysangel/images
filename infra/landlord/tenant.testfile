@@ -1,0 +1,9 @@
+#!/bin/bash
+# 煙霧測試 for landlord:tenant-vX —— 驗 kubectl(k8stools 重用)+log_client/template 就位
+set -euo pipefail
+img_tag="${1:?usage: bash testfile <family>:<tag>}"
+echo "[test] ${img_tag}"
+out="$(sudo podman run --rm --entrypoint /bin/bash "${REGISTRY_PREFIX:?}/${img_tag}" -c 'command -v kubectl; command -v mysql; command -v inotifywait; command -v envsubst; ls /bin/log_client /bin/template' 2>&1)" || true
+echo "${out}"
+for need in kubectl mysql inotifywait envsubst /bin/log_client /bin/template; do grep -q "${need}" <<<"${out}" || { echo "[FAIL] tenant 缺 ${need}" >&2; exit 1; }; done
+echo "[OK] ${img_tag} tenant 煙霧測試通過"

@@ -1,0 +1,5 @@
+docker.io:
+  images-by-tag-regex:
+    calico/cni: ^(v[0-9.]+|latest)$
+    calico/node: ^(v[0-9.]+|latest)$
+    calico/kube-controllers: ^(v[0-9.]+|latest)$

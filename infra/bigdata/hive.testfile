@@ -1,0 +1,11 @@
+#!/bin/bash
+# 煙霧測試 for bigdata:hive-vX —— 驗 Hive 4.0.0 + mariadb-jdbc 2.7.12 jar
+set -euo pipefail
+img_tag="${1:?usage: bash testfile <family>:<tag>}"
+echo "[test] ${img_tag}"
+out="$(sudo podman run --rm "${REGISTRY_PREFIX:?}/${img_tag}" bash -lc 'echo HOME=$HIVE_HOME; test -x "$HIVE_HOME/bin/hive" && echo hive-bin-ok; ls "$HIVE_HOME"/lib/mariadb-java-client-*.jar' 2>&1)" || true
+echo "${out}"
+grep -q 'apache-hive-4\.0\.0' <<<"${out}" || { echo "[FAIL] HIVE_HOME 非 4.0.0" >&2; exit 1; }
+grep -q 'hive-bin-ok' <<<"${out}"        || { echo "[FAIL] hive 執行檔不存在" >&2; exit 1; }
+grep -q 'mariadb-java-client-2\.7\.12\.jar' <<<"${out}" || { echo "[FAIL] mariadb-jdbc jar 未注入 lib" >&2; exit 1; }
+echo "[OK] ${img_tag} hive 煙霧測試通過"

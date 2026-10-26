@@ -1,0 +1,5 @@
+docker.io:
+  images-by-tag-regex:
+    juicedata/csi-dashboard: ^(v[0-9.]+|latest)$
+    juicedata/juicefs-csi-driver: ^(v[0-9.]+|latest)$
+    juicedata/mount: ^ce-v1\.3\.[0-9]+$

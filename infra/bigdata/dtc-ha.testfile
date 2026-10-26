@@ -1,0 +1,13 @@
+#!/bin/bash
+# 煙霧測試 for bigdata:dtc-ha-vX —— 驗全套 HA client（hadoop 3.4.0 / hive 4.0.0 / hbase·kafka·spark·zk）+ hconfig/hvrc
+set -euo pipefail
+img_tag="${1:?usage: bash testfile <family>:<tag>}"
+echo "[test] ${img_tag}"
+out="$(sudo podman run --rm "${REGISTRY_PREFIX:?}/${img_tag}" bash -lc 'hadoop version; echo "HIVE_HOME=$HIVE_HOME"; command -v hbase; command -v kafka-topics.sh; command -v spark-submit; command -v zkCli.sh; ls /bin/hconfig /bin/hvrc' 2>&1)" || true
+echo "${out}"
+grep -q 'Hadoop 3\.4\.0' <<<"${out}"     || { echo "[FAIL] hadoop client 非 3.4.0" >&2; exit 1; }
+grep -q 'apache-hive-4\.0\.0' <<<"${out}" || { echo "[FAIL] HIVE_HOME 非 4.0.0" >&2; exit 1; }
+for need in hbase kafka-topics.sh spark-submit zkCli.sh /bin/hconfig /bin/hvrc; do
+  grep -q "${need}" <<<"${out}" || { echo "[FAIL] dtc-ha 缺 ${need}" >&2; exit 1; }
+done
+echo "[OK] ${img_tag} dtc-ha 煙霧測試通過"

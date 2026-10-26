@@ -1,0 +1,4 @@
+# tag regex 無法編譯:未閉合的括號
+docker.io:
+  images-by-tag-regex:
+    library/alpine: ^([0-9.]+|latest$

@@ -1,0 +1,18 @@
+#!/bin/bash
+# lab／demo 預設憑證，刻意入庫，不是漏洞。正式部署前必須覆寫，不要新增同類明文。
+# 批次建立的租戶帳號，密碼等於帳號名。
+
+# add profile：整份覆寫 /etc/profile，登入即刪 known_hosts、以 sshpass 跳轉到 tenant pod，結尾 exit 0 不讓租戶留在 gateway 的 shell
+echo "
+reset
+rm -rf ~/.ssh/known_hosts &>/dev/null
+sshpass -p \$(whoami) ssh \$(whoami)@\$(whoami).${USERTAG}.${NS} -q 2>/dev/null
+exit 0
+" | tee /etc/profile
+
+# create user
+for num in $(seq 0 99); do
+  user="${USERTAG}-${num}"
+  adduser -s /bin/bash -D "${user}"
+  echo "${user}:${user}" | chpasswd
+done

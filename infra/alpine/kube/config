@@ -1,0 +1,19 @@
+apiVersion: v1
+clusters:
+  - cluster:
+      certificate-authority-data: ${CA}
+      server: https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}
+    name: ${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}
+contexts:
+  - context:
+      cluster: ${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}
+      namespace: ${NAMESPACE}
+      user: ${KUBEUSER}
+    name: ${KUBEUSER}
+current-context: ${KUBEUSER}
+kind: Config
+preferences: {}
+users:
+  - name: ${KUBEUSER}
+    user:
+      token: ${TOKEN}

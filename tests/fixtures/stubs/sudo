@@ -1,0 +1,4 @@
+#!/bin/bash
+# 假 sudo for test_img.sh:無作用,直接 exec 下一個命令
+# 真實 sudo 在無 tty / 無 NOPASSWD 時會卡或失敗,測試環境用此 stub
+exec "$@"

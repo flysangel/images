@@ -1,0 +1,47 @@
+#!/bin/bash
+
+log() {
+  echo "$(date "+%Y-%m-%d %H:%M:%S") INFO ${1}"
+}
+
+waitserver() {
+  while true; do
+    log "Wait ${1}"
+    ping -c 2 "${1}" &>/dev/null && break
+    sleep "${WAIT}"
+  done
+}
+
+echo "${NAMENODE}" "${SECONDARYNAMENODE}" "${RESOURCEMANAGER}" "${HISTORYSERVER}" |
+  xargs -n 1 | while read -r server; do
+  waitserver "${server}"
+done
+
+if echo "${NAMENODE}" | grep -qw "$(hostname)"; then
+  echo -e "N\n" | hdfs namenode -format
+  hdfs --daemon start namenode
+  sleep "${WAIT}" && jps -m | grep -q 'NameNode' && log "Started NameNode on [$(hostname)]"
+fi
+
+if echo "${SECONDARYNAMENODE}" | grep -qw "$(hostname)"; then
+  hdfs --daemon start secondarynamenode
+  sleep "${WAIT}" && jps -m | grep -q 'SecondaryNameNode' && log "Started SecondaryNameNode on [$(hostname)]"
+fi
+
+if echo "${RESOURCEMANAGER}" | grep -qw "$(hostname)"; then
+  yarn --daemon start resourcemanager
+  sleep "${WAIT}" && jps -m | grep -q 'ResourceManager' && log "Started ResourceManager on [$(hostname)]"
+fi
+
+if echo "${HISTORYSERVER}" | grep -qw "$(hostname)"; then
+  mapred --daemon start historyserver
+  sleep "${WAIT}" && jps -m | grep -q 'JobHistoryServer' && log "Started JobHistoryServer on [$(hostname)]"
+fi
+
+if echo "${WORKERNODE}" | grep -qw "$(hostname)"; then
+  hdfs --daemon start datanode
+  sleep "${WAIT}" && jps -m | grep -q 'DataNode' && log "Started DataNode on [$(hostname)]"
+
+  yarn --daemon start nodemanager
+  sleep "${WAIT}" && jps -m | grep -q 'NodeManager' && log "Started NodeManager on [$(hostname)]"
+fi

@@ -1,0 +1,30 @@
+#!/bin/bash
+
+log() {
+  echo "$(date "+%Y-%m-%d %H:%M:%S") INFO ${1}"
+}
+
+waitserver() {
+  while true; do
+    log "Wait ${1}"
+    ping -c 2 "${1}" &>/dev/null && break
+    sleep "${WAIT}"
+  done
+}
+
+if echo "${ZOOKEEPER}" | grep -qw "$(hostname)"; then
+  zoo=$(find "${ZOOKEEPER_HOME}" -name zoo.cfg)
+
+  source "${zoo}" &>/dev/null
+  # myid 用主機名序號加 1：myid 不能是 0
+  echo $((${HOSTNAME##*-} + 1)) | tee "${dataDir}/myid"
+
+  for zk in ${ZOOKEEPER//,/ }; do
+    waitserver "${zk}"
+    num=$(($(echo "${zk}" | grep -o '[0-9]') + 1))
+    echo "server.${num}=${zk}:2888:3888" | sudo tee -a "${zoo}"
+  done
+
+  zkServer.sh start
+  sleep "${WAIT}" && jps -m | grep -q 'QuorumPeerMain' && log "Started QuorumPeerMain on [$(hostname)]"
+fi

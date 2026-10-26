@@ -1,0 +1,65 @@
+#!/bin/bash
+
+#set -x # debug mode
+# var export：envsubst 要看到 KUSER 等變數
+set -a
+
+# create user（base 偵測：alpine 用 BusyBox adduser 並加 wheel；ubuntu/debian 用 useradd 加 sudo 群組）
+# 不釘 -u 1001：base 的 bigred 已佔 1001（provision bigred.txt 的 AUID），交給系統配號
+KUSER=$(hostname)
+if command -v apk >/dev/null 2>&1; then
+  GROUP=wheel
+  adduser -s /bin/bash -h /home/"${KUSER}" -G "${GROUP}" -D "${KUSER}"
+else
+  GROUP=sudo
+  useradd -m -s /bin/bash -d /home/"${KUSER}" -G "${GROUP}" "${KUSER}"
+fi
+# 免密 sudo 實際由 provision sudopw.txt 寫在 /etc/sudoers.d/nopasswd 的群組規則給；這行只改 /etc/sudoers，alpine 沒有 %sudo 行時空轉
+grep -q '%sudo.*NOPASSWD:ALL' /etc/sudoers || sed -i '/%sudo/s/...$/NOPASSWD:ALL/' /etc/sudoers
+# lab／demo 預設憑證，刻意入庫，不是漏洞：密碼等於帳號名（hostname）。正式部署前必須覆寫，不要新增同類明文。
+echo "${KUSER}:${KUSER}" | chpasswd
+if [ -d /run/wk ]; then
+  ln -s /run/wk /home/"${KUSER}"/wk
+else
+  mkdir /home/"${KUSER}"/wk
+fi
+chown -R "${KUSER}":"${GROUP}" /home/"${KUSER}"
+
+# create kube config
+kubectl create namespace "${KUSER}"
+kubectl create serviceaccount "${KUSER}" -n "${KUSER}"
+envsubst </bin/template/role.yaml | kubectl apply -f -
+kubectl create rolebinding "${KUSER}" -n "${KUSER}" --role="${KUSER}" --serviceaccount="${KUSER}":"${KUSER}"
+envsubst </bin/template/secret.yaml | kubectl apply -f -
+CA=$(kubectl get secret "${KUSER}" -n "${KUSER}" -o jsonpath='{.data.ca\.crt}' | base64 -d)
+TOKEN=$(kubectl get secret "${KUSER}" -n "${KUSER}" -o jsonpath='{.data.token}' | base64 -d)
+serviceaccountpath='/run/secrets/kubernetes.io/serviceaccount'
+umount ${serviceaccountpath}
+echo "${CA}" | tee ${serviceaccountpath}/ca.crt
+echo "${TOKEN}" | tee ${serviceaccountpath}/token
+echo "${KUSER}" | tee ${serviceaccountpath}/namespace
+# 以下兩段 tee -a 追加 /etc/profile：ssh 登入的 shell 不繼承容器環境變數，這兩個值要重新 export
+echo "
+export KUBERNETES_SERVICE_HOST=${KUBERNETES_SERVICE_HOST}
+export KUBERNETES_SERVICE_PORT=${KUBERNETES_SERVICE_PORT}
+" | tee -a /etc/profile
+
+# history collect：sed 只清這三個變數，上一段 export 與下方 cd 不冪等，同一容器重跑會多一份；readonly 讓租戶不能 unset 審計
+sed -i '/HISTCONTROL\|HISTTIMEFORMAT\|PROMPT_COMMAND/d' /etc/profile
+echo "
+readonly HISTCONTROL=''
+readonly HISTTIMEFORMAT='|%Y-%m-%d %H:%M:%S|'
+readonly PROMPT_COMMAND='echo HISTORY:\|\$(hostname)\|\$(whoami)\|\$(history 1) | timeout 0.1 nc ${LOG_SERVER}.${NS} 5566; history -a; history -n'
+cd ~/wk
+" | tee -a /etc/profile
+
+# filesystem collect：EXCLUDE 必填，空值時 grep -q '' 匹配所有行，事件全部丟掉。inotifywait -m 常駐，本腳本永不結束，CMD 要以 & 背景執行
+inotifywait -rmq /home \
+  --format '|%T|%e|%w%f' \
+  --timefmt '%Y-%m-%d %H:%M:%S' \
+  --event 'modify,move,create,delete' | while read -r line; do
+  echo "${line}" | grep -q "${EXCLUDE}" ||
+    echo "INOTIFY:|$(hostname)${line}" | timeout 0.1 nc "${LOG_SERVER}.${NS}" 5566
+done
+
+set +a # var unexport

@@ -1,0 +1,13 @@
+#!/bin/bash
+# 假 podman for test_img.sh:append 呼叫到 PODMAN_LOG,依 FAIL_ON_TAG 控 exit
+# 用法:
+#   PODMAN_LOG=/tmp/x.log podman build -f Y -t Z ctx   # 成功 + log
+#   FAIL_ON_TAG="alpine:sshd-v1.0.3" PODMAN_LOG=... podman build ... -t alpine:sshd-v1.0.3 ...
+#     → 仍然 log,但 exit 1(模擬 build 失敗)
+log="${PODMAN_LOG:-/tmp/podman.log}"
+echo "podman $*" >> "${log}"
+# Containerfile 改由 -f <path> 指定(不再走 stdin);完整命令列已記進 log,路徑斷言直接讀該行
+if [[ -n "${FAIL_ON_TAG:-}" && "$*" == *"${FAIL_ON_TAG}"* ]]; then
+  exit 1
+fi
+exit 0

@@ -1,0 +1,56 @@
+# skopeo 同步 CronJob 的部署入口：kubectl kustomize sync 印最終 manifest，task apply:cronjob 套進叢集。
+# 規則檔與 start.sh 經 configMapGenerator 掛進容器，叢集端跑的是 apply 當下這份 checkout 的內容，不再 git clone。
+namespace: svc
+resources:
+  - secret
+  - deploy/cronjob.yaml
+# 關掉內容雜湊後綴：名稱恆為字面值，deploy/cronjob.yaml 的 volumes 才能寫死；改內容後下一次排程自然讀到新版。
+generatorOptions:
+  disableNameSuffixHash: true
+# files: 不支援 glob，也不准引用本目錄以外的檔，所以入口放在 sync/、規則檔逐檔列。
+# 新增或刪除 repository/*.yaml 時同步改下面的清單，tests/test_cronjob.sh 會比對兩邊。
+# 本檔不可搬進 repository/：start.sh 以 *.yaml 撈規則，會把本檔當成規則。
+configMapGenerator:
+  - name: skopeo-script
+    files:
+      - bin/start.sh
+  - name: skopeo-rules
+    files:
+      - repository/alpine.yaml
+      - repository/bitnami.yaml
+      - repository/calico.yaml
+      - repository/certbot.yaml
+      - repository/chrislusf.yaml
+      - repository/cilium.yaml
+      - repository/flannel.yaml
+      - repository/flavio.yaml
+      - repository/gitea.yaml
+      - repository/grafana.yaml
+      - repository/guacamole.yaml
+      - repository/hashicorp.yaml
+      - repository/jenkins.yaml
+      - repository/jrei.yaml
+      - repository/juicedata.yaml
+      - repository/kindest.yaml
+      - repository/koalaman.yaml
+      - repository/library.yaml
+      - repository/linuxserver.yaml
+      - repository/louislam.yaml
+      - repository/milvus.yaml
+      - repository/minio.yaml
+      - repository/ollama.yaml
+      - repository/pgvector.yaml
+      - repository/podman.yaml
+      - repository/quay.yaml
+      - repository/rancher.yaml
+      - repository/rhel8.yaml
+      - repository/rook.yaml
+      - repository/siderolabs.yaml
+      - repository/traefik.yaml
+      - repository/unsloth.yaml
+      - repository/vllm.yaml
+# newTag 與 infra/alpine/versions.conf 的 SERVICE_VERSION 是同一個值，alpine 升版時兩處一起改，目前無人執法。
+images:
+  - name: skopeo
+    newName: quay.io/flysangel/alpine
+    newTag: "podman-v1.0.3"

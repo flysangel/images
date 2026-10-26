@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# prepare sshd privilege separation dir（CMD 結尾的 sshd -D 需要；image use bigred run, need sudo）
+sudo mkdir -p /run/sshd
+
+# prepare config：/conf/<目錄名>/… 逐檔對應到 /opt/<同名目錄>/…，所以 COPY 進 /conf 的目錄名必須等於 tar 解開的目錄名；
+# .sh 原樣複製不經 envsubst，檔內的 ${…} 要留到執行期才展開
+find /conf -type f |
+  while read -r line; do
+    file=$(echo "${line}" | awk -F'/' -v OFS='/' '{$2="opt"; print $0}')
+    folder=$(echo "${file}" | awk -F'/' -v OFS='/' '{$NF=""; print $0}')
+
+    # image use bigred run, need sudo
+    sudo mkdir "${folder}" &>/dev/null
+    if echo "${file}" | grep -q '\.sh'; then
+      sudo cp "${line}" "${file}"
+    else
+      envsubst <"${line}" | sudo tee "${file}" &>/dev/null
+    fi
+  done
+
+# prepare home permission
+# image use bigred run, need sudo
+sudo chown -R "$(id -u)":"$(id -g)" /home/"${HDUSER}"

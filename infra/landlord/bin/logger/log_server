@@ -1,0 +1,24 @@
+#!/bin/bash
+# 需要環境變數 DB_SERVER、DB_ROOT、DB_ROOT_PW、DB_NAME、NS；位址固定組成 DB_SERVER.NS。
+# 欄位直接拼進 INSERT 沒有跳脫，指令含單引號的那筆會寫入失敗。
+
+nc -k -l -p 5566 |
+  while read -r line; do
+    if echo "${line}" | grep '^HISTORY'; then
+      HOSTNAME=$(echo "${line}" | cut -d '|' -f 2)
+      USERNAME=$(echo "${line}" | cut -d '|' -f 3)
+      TIME=$(echo "${line}" | cut -d '|' -f 5)
+      COMMAND=$(echo "${line}" | cut -d '|' -f 6-)
+      mysql -h "${DB_SERVER}.${NS}" -u "${DB_ROOT}" -p"${DB_ROOT_PW}" "${DB_NAME}" \
+        -e "INSERT INTO history VALUES ('${HOSTNAME}','${USERNAME}','${TIME}','${COMMAND}')"
+    fi
+
+    if echo "${line}" | grep '^INOTIFY'; then
+      HOSTNAME=$(echo "${line}" | cut -d '|' -f 2)
+      TIME=$(echo "${line}" | cut -d '|' -f 3)
+      EVENT=$(echo "${line}" | cut -d '|' -f 4)
+      INPATH=$(echo "${line}" | cut -d '|' -f 5-)
+      mysql -h "${DB_SERVER}.${NS}" -u "${DB_ROOT}" -p"${DB_ROOT_PW}" "${DB_NAME}" \
+        -e "INSERT INTO inotify VALUES ('${HOSTNAME}','${TIME}','${EVENT}','${INPATH}')"
+    fi
+  done

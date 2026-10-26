@@ -1,0 +1,74 @@
+#!/bin/bash
+# 煙霧測試 for rdp:lxqt-vX
+# (1) xrdp :3389 listen
+# (2) sshd :22 listen + bigred 可 ssh
+# (3) lxqt-session / xrdp binary 在 image 內
+# (4) xfreerdp 從 host 透過 RDP 通訊協定真實連入並維持 30 秒
+set -euo pipefail
+
+img_tag="${1:?usage: bash testfile <family>:<tag>}"
+echo "[test] starting ${img_tag}"
+
+# host 必須裝 xfreerdp 才能跑 RDP 端到端測試（apt install freerdp2-x11 之類）
+if ! command -v xfreerdp >/dev/null 2>&1; then
+    echo "[FAIL] xfreerdp not installed on host (please install freerdp2-x11)" >&2
+    exit 1
+fi
+
+sudo podman run --rm --privileged --network bridge --name repotest -d "${REGISTRY_PREFIX:?REGISTRY_PREFIX 未設(由 img.sh test/ci 注入,或先 export)}/${img_tag}"
+trap 'sudo podman stop repotest >/dev/null 2>&1 || true' EXIT
+
+# 等 xrdp 與 sshd 起來（最多 90s）
+for _ in $(seq 1 45); do
+    if sudo podman exec repotest sh -c \
+        'ss -lnt 2>/dev/null | grep -q :3389 && ss -lnt 2>/dev/null | grep -q :22'; then
+        break
+    fi
+    sleep 2
+done
+
+# 1) xrdp :3389 listen
+sudo podman exec repotest sh -c \
+    'ss -lnt 2>/dev/null | grep :3389' >/dev/null \
+    || { echo "[FAIL] xrdp not listening on :3389" >&2; exit 1; }
+
+# 2) sshd :22 listen + bigred ssh 連通
+sudo podman exec repotest sh -c \
+    'ss -lnt 2>/dev/null | grep :22' >/dev/null \
+    || { echo "[FAIL] sshd not listening on :22" >&2; exit 1; }
+
+ip="$(sudo podman inspect repotest | jq -r '.[0].NetworkSettings.IPAddress')"
+sshpass -p bigred ssh \
+    -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+    "bigred@${ip}" 'echo ssh test ok' \
+    || { echo "[FAIL] ssh login failed for bigred@${ip}" >&2; exit 1; }
+
+# 3) WM session 與 xrdp binary 在 image 內
+for bin in xrdp lxqt-session; do
+    sudo podman exec repotest sh -c "command -v ${bin}" >/dev/null \
+        || { echo "[FAIL] ${bin} not in PATH" >&2; exit 1; }
+done
+
+# 4) xfreerdp 透過 RDP 通訊協定真實連入並維持 30 秒
+echo "[test] xfreerdp connecting to ${ip}:3389, holding for 30s..."
+xfreerdp \
+    /v:"${ip}:3389" \
+    /u:bigred /p:bigred \
+    /cert:ignore \
+    /log-level:WARN </dev/null >/dev/null 2>&1 &
+xfreerdp_pid=$!
+sleep 5
+if ! kill -0 "${xfreerdp_pid}" 2>/dev/null; then
+    echo "[FAIL] xfreerdp died within 5s of starting" >&2
+    exit 1
+fi
+sleep 25
+if ! kill -0 "${xfreerdp_pid}" 2>/dev/null; then
+    echo "[FAIL] xfreerdp died before 30s mark" >&2
+    exit 1
+fi
+kill -TERM "${xfreerdp_pid}" 2>/dev/null || true
+wait "${xfreerdp_pid}" 2>/dev/null || true
+echo "[test] xfreerdp held 30s session OK"
+
+echo "[OK] ${img_tag} smoke test passed"

@@ -1,0 +1,9 @@
+#!/bin/bash
+# 煙霧測試 for bigdata:hbase-vX —— 驗 HBase 2.5.8
+set -euo pipefail
+img_tag="${1:?usage: bash testfile <family>:<tag>}"
+echo "[test] ${img_tag}"
+out="$(sudo podman run --rm "${REGISTRY_PREFIX:?}/${img_tag}" bash -lc 'hbase version' 2>&1)" || true
+echo "${out}"
+grep -q '2\.5\.8' <<<"${out}" || { echo "[FAIL] HBase 2.5.8 未找到" >&2; exit 1; }
+echo "[OK] ${img_tag} hbase 煙霧測試通過"
