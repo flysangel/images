@@ -49,6 +49,16 @@ func Run(cat *catalog.Catalog, repoRoot string) []Finding {
 		}
 		out = append(out, lintFamily(cat, fam, dir, repoRoot, allowed)...)
 	}
+	// 反向檢查：有 .imgctl 標記、catalog 卻沒有的 family，舊 lint 也會略過，不報就沒人看。
+	markers, _ := filepath.Glob(filepath.Join(repoRoot, "infra", "*", ".imgctl"))
+	sort.Strings(markers)
+	for _, m := range markers {
+		fam := filepath.Base(filepath.Dir(m))
+		if _, ok := cat.Families[fam]; !ok {
+			r, _ := filepath.Rel(repoRoot, m)
+			out = append(out, Finding{r, 0, fmt.Sprintf("infra/%s 有 .imgctl 標記，但 catalog 沒有 family %s", fam, fam)})
+		}
+	}
 	return out
 }
 

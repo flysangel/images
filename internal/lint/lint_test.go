@@ -133,3 +133,15 @@ func TestFindingString(t *testing.T) {
 		t.Errorf("String() = %q", got)
 	}
 }
+
+func TestRule6MarkerWithoutCatalogFamily(t *testing.T) {
+	root := setup(t, map[string]string{"base.Dockerfile": goodBase, "sshd.Dockerfile": goodSshd})
+	dir := filepath.Join(root, "infra", "typo")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".imgctl"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	expect(t, Run(testCatalog(), root), "infra/typo/.imgctl", 0, "typo")
+}
