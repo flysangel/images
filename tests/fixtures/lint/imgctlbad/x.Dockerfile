@@ -1,0 +1,2 @@
+ARG NOPE
+FROM scratch

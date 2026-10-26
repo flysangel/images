@@ -72,6 +72,23 @@ check_lint "matrix 缺 SERVERS_* 擋下" "${fx}/mtxnoservers/versions.conf" 1 "S
 # 自我檢查(有候選卻零匹配)是唯一擋得住的東西,它本身也需要一個 fixture
 check_lint "FROM 拓撲規則零匹配但有候選 → 擋下" "${fx}/fromselfcheck/versions.conf" 1 "脫節"
 
+# 過渡期:infra/<family>/.imgctl 空標記＝該 family 已遷移到 imgctl。
+# 跳過 Dockerfile 規則（FROM 拓撲、①到④），versions.conf 文法照驗。
+# 這裡驗 stdout 的 Info，所以不用 check_lint（它丟掉 stdout）。
+stdout_file="/tmp/test_family_lint.stdout"
+python3 "${lint}" "${fx}/imgctlskip/versions.conf" >"${stdout_file}" 2>/dev/null
+rc=$?
+if [[ "${rc}" -eq 0 ]] && grep -q "已遷移到 imgctl" "${stdout_file}"; then
+    echo "[OK] .imgctl 標記跳過 Dockerfile 規則並印 Info"
+    pass=$((pass+1))
+else
+    echo "[FAIL] .imgctl 標記:expected rc 0 + Info, got rc ${rc}" >&2
+    sed 's/^/       /' "${stdout_file}" >&2
+    fail=$((fail+1))
+fi
+rm -f "${stdout_file}"
+check_lint ".imgctl 標記的 family 仍驗 conf 文法(未加引號擋下)" "${fx}/imgctlbad/versions.conf" 1 "未加雙引號"
+
 # 無參數:usage 出口
 stderr_file="/tmp/test_family_lint.stderr"
 python3 "${lint}" >/dev/null 2>"${stderr_file}"

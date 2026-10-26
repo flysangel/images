@@ -224,6 +224,13 @@ def check_one(path: str) -> None:
         if not data.get("CHAIN", "").split():
             fail(path, "CHAIN 須為非空的空白分隔 service 清單（順序即 build 依賴序）")
 
+    # 過渡期：infra/<family>/.imgctl 空標記＝該 family 已遷移到 imgctl，
+    # Dockerfile 改用新寫法，舊規則（FROM 拓撲、①到④）不適用。conf 文法上面已驗過。
+    fam_dir = os.path.dirname(path)
+    if os.path.exists(os.path.join(fam_dir, ".imgctl")):
+        family = os.path.basename(fam_dir)
+        print(f"Info: {family} 已遷移到 imgctl，略過 Dockerfile 規則")
+        return
     check_tpl_rules(path, data, is_matrix)
     print(f"Success: {path}（{'matrix' if is_matrix else 'non-matrix'} family schema+FROM 拓撲+ARG 契約合法）")
 
