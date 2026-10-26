@@ -1,4 +1,5 @@
 # fbs family 的煙霧測試規格，由 `imgctl test` 讀取。
 # filebrowser 是容器主程序，沒有 sshd：ssh 為 null，wait_port 等 filebrowser 的 :4000 listen。
+# 設了 script 就只跑 infra/fbs/smoke.sh（路徑相對 repo 根），參數是容器名。
 services:
-  base: { wait_port: 4000, commands: [filebrowser] }
+  base: { wait_port: 4000, script: infra/fbs/smoke.sh }
