@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -123,4 +124,21 @@ func Steps(s Spec, ip, container string) [][]string {
 		steps = append(steps, exec(fmt.Sprintf("{ readlink /etc/localtime; cat /etc/timezone; } 2>/dev/null | grep -q %s", strconv.Quote(s.Timezone))))
 	}
 	return steps
+}
+
+// InspectIPArgs 組出取容器 IP 的 docker inspect 指令。
+// 新版 Docker 不再提供頂層的 NetworkSettings.IPAddress，所以走 Networks；
+// 模板每個網路輸出一行，由 FirstIP 取第一個非空的。
+func InspectIPArgs(container string) []string {
+	return []string{"docker", "inspect", "-f", "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{\"\\n\"}}{{end}}", container}
+}
+
+// FirstIP 從 InspectIPArgs 的輸出取第一個非空行；都空則回空字串。
+func FirstIP(out string) string {
+	for _, l := range strings.Split(out, "\n") {
+		if l = strings.TrimSpace(l); l != "" {
+			return l
+		}
+	}
+	return ""
 }

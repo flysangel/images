@@ -189,11 +189,19 @@ func runTest(args []string) int {
 
 	ip := ""
 	if spec.SSH != nil {
-		out, err := exec.Command("docker", "inspect", "-f", "{{.NetworkSettings.IPAddress}}", name).Output()
+		ia := smoke.InspectIPArgs(name)
+		out, err := exec.Command(ia[0], ia[1:]...).Output()
 		if err != nil {
-			return fail("docker inspect 失敗：%v", err)
+			msg := ""
+			if ee, ok := err.(*exec.ExitError); ok {
+				msg = strings.TrimSpace(string(ee.Stderr))
+			}
+			return fail("docker inspect 失敗：%v：%s", err, msg)
 		}
-		ip = strings.TrimSpace(string(out))
+		ip = smoke.FirstIP(string(out))
+		if ip == "" {
+			return fail("容器沒有 IP")
+		}
 		if spec.WaitPort != nil {
 			if err := waitPort(ip, *spec.WaitPort, 60*time.Second); err != nil {
 				return fail("%v", err)

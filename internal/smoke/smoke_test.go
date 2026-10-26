@@ -120,3 +120,25 @@ func TestRealSpec(t *testing.T) {
 		}
 	}
 }
+
+func TestInspectIPArgs(t *testing.T) {
+	got := InspectIPArgs("c1")
+	want := []string{"docker", "inspect", "-f", "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{\"\\n\"}}{{end}}", "c1"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestFirstIP(t *testing.T) {
+	cases := map[string]string{
+		"172.17.0.2\n":             "172.17.0.2",
+		"\n10.0.0.5\n172.17.0.2\n": "10.0.0.5",
+		"":                         "",
+		" \n\n":                    "",
+	}
+	for in, want := range cases {
+		if got := FirstIP(in); got != want {
+			t.Errorf("FirstIP(%q)=%q want %q", in, got, want)
+		}
+	}
+}
