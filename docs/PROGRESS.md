@@ -8,30 +8,15 @@
 - alpine 已改由 `imgctl` 與 GitHub Actions 建置，其他 family 仍用 `img.sh`。過渡期的限制見 `AGENTS.md`〈alpine 已改由 imgctl 建置〉。
 - blocker：registry 上 `bigdata` 到 `landlord` 的映像鏈建不起來，見 `AGENTS.md`〈registry 上的映像鏈可能建不起來〉。
 
-## 2. 進行中
-
-這個分支把 alpine 遷到 catalog、`imgctl` 與 GitHub Actions，當作遷移的原型。
-
-做到哪：原型的四題都通過，驗證在 GitHub Actions run 40312324353，promote 經 production 環境核准。
-
-- 升版規則：`imgctl plan PROVISION_REF=v2.1.0` 判定 alpine 全部重建，範圍與 README〈升 PROVISION_REF〉推得的一致。不帶覆寫時 alpine 全部是「輸入未變」，不重建。
-- 分批建置：build-0 起的各批全綠，後批以前批推上 GHCR 的 `ref@sha256` 當 FROM。
-- privileged 測試：alpine 全部全綠。測試以 privileged 起容器，驗到指令存在（podman、qemu 只驗 `command -v`，沒跑巢狀容器，也沒啟動 qemu）。`/dev/kvm` 與各顆 `df -h` 的量測在 run 40312324353 的 step summary，待抄入本節。
-- promote 保住 digest：quay 上新推的 tag 的 digest 與 GHCR 暫存區相同，label `org.flysangel.input-hash` 都在，既有 `alpine:k8sadm-v1.0.3` 的 digest 推送前後相同。
-
-CI 建置用 podman，不是設計文件（本機 spec，不進版控）寫的 buildx：BuildKit 掛唯讀 `/etc/resolv.conf`，provision 的 `base.txt` 寫不進去。`docs/images-manifest.yaml` 原型期間沒改，仍是 alpine v1.0.3 系列。
-
-下一步：
-
-1. 使用者動作：到 GitHub Environment `production` 的 deployment branches 設定，刪掉允許的 `imgctl-alpine` 分支（workflow 已只認 `main`）。
-2. 使用者決定要不要寫「遷移其餘 family」的計畫。
-3. merge 回 main 前，跑最終的全分支審查。
-4. merge 前刪掉本節。
-
-## 3. 待辦
+## 2. 待辦
 
 有觸發條件的，句尾括號寫什麼時候做。
 
+- 寫「遷移其餘 family 到 `imgctl`」的計畫：依依賴序遷 fbs、gmm、open-webui、taroko、ubuntu、rdp、bigdata、landlord。全部遷完後刪 `img.sh`、各 family 的 `versions.conf`、`config/versions.conf` 與 `.imgctl` 標記，manifest 改由 `imgctl` 產生
+- 把 GitHub Actions run 40312324353 step summary 的 `/dev/kvm` 結果與各顆 `df -h` 抄進 `docs/ARCHITECTURE.md`〈已知的結構性限制〉。重型 family（bigdata、rdp、taroko）用免費 runner 還是自架，要靠這兩個值決定
+- alpine 的輸入雜湊收整個 `infra/alpine/`，改 README 或 `*.testfile` 也會讓 alpine 全部重新發 tag。在 `imgctl` 加排除清單，只收 build context 會用到的檔
+- `infra/alpine/README.md` 開頭的結構樹與「值由 `img.sh` 供給」的敘述過時；`AGENTS.md`〈改了哪類檔要多驗什麼〉的 `config/versions.conf` 列仍寫「沒有程式驗」，現在 `imgctl lint` 會比對 `PROVISION_REF`
+- `tests/test_img.sh` 的 `*-all` 略過已遷移 family 那個 case，只斷言被略過的 family，沒斷言其他 family 照跑
 - `infra/alpine/tests.yaml` 的 podman 顆加真實檢查（例如 `podman info`），現在只驗指令存在。改 `tests.yaml` 會讓 alpine 全部重新發 tag，等下一次 alpine 本來就要升版時一起做
 - 用當前釘的 provision 重建 registry 上的映像並發新版：步驟見 README〈升 PROVISION_REF〉。taroko 的 tag 不帶版號，重建會覆蓋 registry 上的既有 tag，動手前先決定做法。這也會修好 `landlord:tenant-hadoop` 對著 registry 建不起來的時間錯位
 - 有 FROM 沒寫 tag、隱含 `latest`：`library/mariadb` 與 `minio/mc`，查法 `grep -n 'FROM .*\(mariadb\|minio/mc\)' infra/*/*.Dockerfile`。同步 CronJob 每晚把上游新版鏡進來，下次建置 base 就靜默換掉。在各 family 的 `versions.conf` 加頂層鍵（例如 `MARIADB_TAG`、`MC_TAG`）並在 FROM 使用。`minio/mc` 的同步規則目前只鏡 `latest`，要先改規則、同步一次才釘得了。等於換 base，整個 family 要升版並重建。同性質的還有 `infra/fbs/base.Dockerfile`：filebrowser 由上游 `get.sh` 的 `master` 分支裝最新版，沒釘版本或 checksum，改成釘 release URL 加 sha256，比照 alpine 的 `SEAWEEDFS_URL`
