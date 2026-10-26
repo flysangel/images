@@ -15,6 +15,7 @@ services:
   sshd:     {}
   runner:   { ssh: null, wait_port: null, privileged: false, commands: [git] }
   k8sadm:   { commands: [kind], files: [{ path: /home/bigred/.kube/config.tmp, mode: "600", owner: bigred }] }
+  app:      { ssh: null, wait_port: 4000, commands: [filebrowser] }
   esc:      { script: infra/alpine/esc.sh }
 `
 
@@ -139,6 +140,32 @@ func TestFirstIP(t *testing.T) {
 	for in, want := range cases {
 		if got := FirstIP(in); got != want {
 			t.Errorf("FirstIP(%q)=%q want %q", in, got, want)
+		}
+	}
+}
+
+// 三種組合：有 ssh、只有 wait_port、兩者皆無。
+// 只有「沒有 ssh、也沒有 wait_port」才換 sleep entrypoint，其餘照映像自己的 entrypoint 啟動。
+func TestRunArgsCombos(t *testing.T) {
+	cases := []struct {
+		svc, want string
+	}{
+		{"sshd", "docker run -d --privileged --name c1 img"},
+		{"app", "docker run -d --privileged --name c1 img"},
+		{"base", "docker run -d --privileged --name c1 --entrypoint sleep img 3600"},
+	}
+	for _, c := range cases {
+		if got := strings.Join(RunArgs(load(t, c.svc), "img", "c1"), " "); got != c.want {
+			t.Errorf("%s：\ngot  %q\nwant %q", c.svc, got, c.want)
+		}
+	}
+}
+
+// 有 ssh 或有 wait_port 就要取容器 IP；兩者皆無則不用。
+func TestNeedsIP(t *testing.T) {
+	for svc, want := range map[string]bool{"sshd": true, "app": true, "base": false} {
+		if got := NeedsIP(load(t, svc)); got != want {
+			t.Errorf("%s：NeedsIP=%v want %v", svc, got, want)
 		}
 	}
 }

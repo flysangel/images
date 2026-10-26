@@ -188,7 +188,7 @@ func runTest(args []string) int {
 	defer exec.Command("docker", "rm", "-f", name).Run()
 
 	ip := ""
-	if spec.SSH != nil {
+	if smoke.NeedsIP(spec) {
 		ia := smoke.InspectIPArgs(name)
 		out, err := exec.Command(ia[0], ia[1:]...).Output()
 		if err != nil {
