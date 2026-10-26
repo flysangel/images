@@ -55,6 +55,7 @@ tasks:
       - bash tests/test_sync_lint.sh
       - bash tests/test_sync_start.sh
       - bash tests/test_cronjob.sh
+      - go test ./...
 
   lint:family:
     desc: '[開發] 驗各 family 的 versions.conf 是否符合 schema（用法：task lint:family FAMILY_VERSIONS=<glob>）'
