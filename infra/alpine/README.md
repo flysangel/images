@@ -28,32 +28,20 @@ alpine/
 
 ## Build
 
+alpine 已遷移到 `imgctl`。`infra/bin/img.sh` 與 `task *:image` 不能建它（FROM 是光桿 `*_IMAGE`，沒有 `imgctl` 供值）。值在 [`../../catalog.yaml`](../../catalog.yaml)，煙霧測試在 `tests.yaml`，建置與測試由 `imgctl` 與 GitHub Actions 執行：
+
 ```bash
-# build 整 family,依 chain 順序
-bash infra/bin/img.sh build alpine
+# 印 plan：哪些 service 要重建
+go run ./cmd/imgctl plan
 
-# build 單一 service
-bash infra/bin/img.sh build alpine sshd
-
-# 印該顆會拿到的 --build-arg 值表(不 build,debug 用;取代已退役的 render 子命令)
-bash infra/bin/img.sh __dump_build_args alpine sshd
-
-# 跑 smoke test(image 必須先 build)
-bash infra/bin/img.sh test alpine sshd
-
-# 磁碟友善 CI:依 chain build + test 全部,全成功後 rmi 全部
-bash infra/bin/img.sh ci alpine
+# 檢查 Dockerfile 與 catalog 一致
+go run ./cmd/imgctl lint
 ```
 
 ## 升級
 
-升 Alpine base 或 service version 只需改 `versions.conf`,例如:
+升 Alpine base 或 service version 改 `catalog.yaml`，不改 `versions.conf`（已凍結，只供其他 family 取 alpine 的上游值）。
 
-```conf
-BASE=3.22.0             # 升級到 3.22
-SERVICE_VERSION=v1.0.4  # 新 service 版本
-```
+> `sync/kustomization.yaml` 的 `newTag`（同步 CronJob 用的 `alpine:podman-<版本>`）是第二個落點。升版時兩處要一起改，目前無人執法（見 [`../../docs/PROGRESS.md`](../../docs/PROGRESS.md) 待辦）。
 
-> `SERVICE_VERSION` 另有第二個落點:`sync/kustomization.yaml` 的 `newTag`(同步 CronJob 用的 `alpine:podman-<版本>`)。升版時兩處要一起改,目前無人執法(見 [`../../docs/PROGRESS.md`](../../docs/PROGRESS.md) 待辦)。
-
-之後 `bash infra/bin/img.sh build alpine` 會用新版重 build。
+push 到 `main` 後，CI 會用新版重建。

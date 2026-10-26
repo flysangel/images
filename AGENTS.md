@@ -5,9 +5,9 @@
 ## 1. 30 秒定位
 
 - 映像供應層。`sync/` 鏡上游映像，`infra/` 建自家 family 的映像，兩者都推 `quay.io/flysangel`。
-- 值的唯一來源是各 family 的 `versions.conf`。`infra/bin/img.sh` 把它組成 `--build-arg` 交給 podman，沒有渲染步驟，`infra/<family>/*.Dockerfile` 就是正本。
+- 值的唯一來源是各 family 的 `versions.conf`（過渡期例外：alpine 的值在 `catalog.yaml`）。`infra/bin/img.sh` 把它組成 `--build-arg` 交給 podman，沒有渲染步驟，`infra/<family>/*.Dockerfile` 就是正本。
 - 本 repo 產出 `docs/images-manifest.yaml`，是釘 `IMAGES_REF` 的下游唯一的 image tag 來源。manifest 一發佈，下游就照它取 tag，所以改動的代價在下游。消費者範圍見 `docs/ARCHITECTURE.md`〈定位與邊界〉。
-- 上游只釘 `provision`，版本在 `config/versions.conf` 的 `PROVISION_REF`。
+- 上游只釘 `provision`，版本在 `config/versions.conf` 的 `PROVISION_REF`。過渡期 alpine 的值另在 `catalog.yaml` 的 `provision_ref`，兩處都要改，不同值時 `imgctl lint` 擋下。
 - push 護欄是本 repo 自帶的 `.githooks/pre-push`，由帳號層派工 hook 呼叫。兩層怎麼串見 `~/.claude/rules/githooks.md`〈兩層 hook 怎麼串〉。
 
 ## 2. 開工
@@ -96,7 +96,7 @@ alpine 只能經 `imgctl` 與 GitHub Actions 建置。`img.sh` 與 `task build:i
 
 ### 換 registry 要改好幾處
 
-registry 位址 `quay.io/flysangel` 寫在取值點，不進 `versions.conf`：`infra/bin/img.sh` 的 `REGISTRY_PREFIX` 預設值、`sync/bin/start.sh` 的 `DEST`（以字串相接組目的地，值要保留尾斜線）、`sync/kustomization.yaml` 的 `newName`。`tests/test_cronjob.sh` 與 `tests/test_sync_start.sh` 也寫了字面值。漏改任一處，建置、同步或測試就會指向舊 registry。下游 app-services 每個服務的 `images:` 也寫死 registry 位址。app-services 不讀 manifest，換 registry 時要另外通知它改 `images:`。查法：
+registry 位址 `quay.io/flysangel` 寫在取值點，不進 `versions.conf`：`infra/bin/img.sh` 的 `REGISTRY_PREFIX` 預設值、`sync/bin/start.sh` 的 `DEST`（以字串相接組目的地，值要保留尾斜線）、`sync/kustomization.yaml` 的 `newName`。過渡期另有三處：`catalog.yaml` 的 `registry`、`.github/workflows/images.yml` 的 promote 目的地、`.github/workflows/build-batch.yml` 的 `ghcr.io/flysangel/images-staging`。`tests/test_cronjob.sh` 與 `tests/test_sync_start.sh` 也寫了字面值。漏改任一處，建置、同步或測試就會指向舊 registry。下游 app-services 每個服務的 `images:` 也寫死 registry 位址。app-services 不讀 manifest，換 registry 時要另外通知它改 `images:`。查法：
 
 ```bash
 grep -rn 'quay.io/flysangel' --include='*.sh' --include='*.yaml' . | grep -v -e fixtures -e images-manifest
@@ -152,7 +152,7 @@ gateway 帳號名、tenant pod 的 hostname、tenant 內建的使用者、namesp
 
 | 改了什麼 | 跑什麼 |
 |---|---|
-| family 的 `versions.conf` 或 `*.Dockerfile` | `task lint:family`；看值表用 `__dump_build_args`；真要確認建得起來只有 `task try:image -- <family> <service>`。alpine 升版再跑 `bash tests/test_cronjob.sh`，`sync/kustomization.yaml` 的 `newTag` 要同步改。過渡期 alpine 的版本值在 `catalog.yaml`，`infra/alpine/versions.conf` 已凍結 |
+| family 的 `versions.conf` 或 `*.Dockerfile` | `task lint:family`；看值表用 `__dump_build_args`（alpine 不適用，改看 `imgctl plan`）；真要確認建得起來只有 `task try:image -- <family> <service>`。alpine 升版再跑 `bash tests/test_cronjob.sh`，`sync/kustomization.yaml` 的 `newTag` 要同步改。過渡期 alpine 的版本值在 `catalog.yaml`，`infra/alpine/versions.conf` 已凍結 |
 | `config/versions.conf` | 沒有程式驗。鍵名與 `vX.Y.Z` 值靠人維持 |
 | `infra/bin/` | `bash tests/test_img.sh`，直接跑前先確認 stub 有效 |
 | `bin/family-lint.py` | `bash tests/test_family_lint.sh` |
