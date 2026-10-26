@@ -91,7 +91,12 @@ func makeItem(cat *catalog.Catalog, g *graph.Graph, rc registry.Client, n graph.
 	sort.Strings(existing)
 
 	it := Item{Family: n.Family, Service: n.Service, Class: svc.Class, InputHash: in, BuildArgs: args, Upstream: up}
+	// 上層重建會換新 tag，子層即使 label 吻合也必須跟著重建。
+	parentRebuilt := anyRebuilt(local, rebuilt)
 	for _, t := range existing {
+		if parentRebuilt {
+			break
+		}
 		got, err := rc.Label(repo+":"+t, HashLabel)
 		if err != nil {
 			return Item{}, err
@@ -107,7 +112,7 @@ func makeItem(cat *catalog.Catalog, g *graph.Graph, rc registry.Client, n graph.
 	switch {
 	case len(existing) == 0:
 		it.Reason = "無既有映像"
-	case anyRebuilt(local, rebuilt):
+	case parentRebuilt:
 		it.Reason = "上層重建"
 	default:
 		it.Reason = "輸入改變"

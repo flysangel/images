@@ -100,8 +100,23 @@ func (c *client) Exists(ref string) (bool, error) {
 	return true, nil
 }
 
-// isNotFound 判斷錯誤是否為 registry 回的 404。
+// isNotFound 判斷錯誤是否表示 repo 或 tag 不存在：404，或 quay 對不存在 repo 回的
+// 401 UNAUTHORIZED（匿名查不存在的 repo 時 quay 不回 404）。其他錯誤不算。
 func isNotFound(err error) bool {
 	var te *transport.Error
-	return errors.As(err, &te) && te.StatusCode == http.StatusNotFound
+	if !errors.As(err, &te) {
+		return false
+	}
+	if te.StatusCode == http.StatusNotFound {
+		return true
+	}
+	if te.StatusCode != http.StatusUnauthorized {
+		return false
+	}
+	for _, d := range te.Errors {
+		if d.Code == transport.UnauthorizedErrorCode {
+			return true
+		}
+	}
+	return false
 }

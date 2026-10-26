@@ -1,9 +1,12 @@
 package registry
 
 import (
+	"fmt"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	ggcrreg "github.com/google/go-containerregistry/pkg/registry"
@@ -59,5 +62,40 @@ func TestRegistry(t *testing.T) {
 	d2, err2 := c.Digest(dst)
 	if err1 != nil || err2 != nil || d1 != d2 || !strings.HasPrefix(d1, "sha256:") {
 		t.Errorf("digest 不同：%s、%s（%v、%v）", d1, d2, err1, err2)
+	}
+}
+
+func TestListTagsUnknownRepo(t *testing.T) {
+	srv := httptest.NewServer(ggcrreg.New())
+	defer srv.Close()
+	host := strings.TrimPrefix(srv.URL, "http://")
+	c := New(remote.WithTransport(srv.Client().Transport))
+	tags, err := c.ListTags(host + "/no/such")
+	if err != nil || len(tags) != 0 {
+		t.Errorf("ListTags = %v, %v", tags, err)
+	}
+}
+
+// quay 對不存在的 repo 回 401 UNAUTHORIZED，要當成空清單；其他錯誤照報。
+func TestListTags401(t *testing.T) {
+	status := http.StatusUnauthorized
+	code := "UNAUTHORIZED"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v2/" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		w.WriteHeader(status)
+		fmt.Fprintf(w, `{"errors":[{"code":%q,"message":"x"}]}`, code)
+	}))
+	defer srv.Close()
+	host := strings.TrimPrefix(srv.URL, "http://")
+	c := New(remote.WithTransport(srv.Client().Transport), remote.WithRetryBackoff(remote.Backoff{Duration: time.Millisecond, Factor: 1, Steps: 1}))
+	if tags, err := c.ListTags(host + "/a/b"); err != nil || len(tags) != 0 {
+		t.Errorf("401 UNAUTHORIZED：%v, %v", tags, err)
+	}
+	status, code = http.StatusInternalServerError, "UNKNOWN"
+	if _, err := c.ListTags(host + "/a/b"); err == nil {
+		t.Error("500 應回錯誤")
 	}
 }

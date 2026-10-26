@@ -164,3 +164,23 @@ func TestContextOnly(t *testing.T) {
 		}
 	}
 }
+
+// 上層的 label 過期時，子層即使自己的 label 吻合也要跟著重建。
+func TestParentRebuildPropagates(t *testing.T) {
+	cat, g := load(t)
+	f := seed(t, cat, g, v103, true)
+	f.tags[cat.Registry+"/alpine"]["sshd-v1.0.3"] = "stale"
+	p, err := Make(cat, g, f, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := items(p)
+	for _, s := range []string{"sshd", "podman", "qemu", "s3cli", "k8stools", "k8sadm"} {
+		if !m[s].Rebuild {
+			t.Errorf("%s 應重建", s)
+		}
+		if s != "sshd" && m[s].Reason != "上層重建" {
+			t.Errorf("%s Reason = %q", s, m[s].Reason)
+		}
+	}
+}
