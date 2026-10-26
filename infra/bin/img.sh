@@ -39,10 +39,10 @@ REGISTRY_PREFIX="${REGISTRY_PREFIX:-quay.io/flysangel}"
 # testfile 子程序在執行期用 "${REGISTRY_PREFIX}/${img_tag}" 拼映像參考
 export REGISTRY_PREFIX
 
-# 順序即跨 family FROM 依賴的拓撲序(ubuntu 先於 bigdata/rdp、alpine 先於 fbs/gmm/taroko/open-webui/landlord、
+# 順序即跨 family FROM 依賴的拓撲序(ubuntu 先於 bigdata/rdp、alpine 先於 gmm/taroko/landlord、
 # bigdata 先於 landlord),不得改字母序,否則 build 拉不到上游映像。新增 family 要同時建目錄並加進這裡。
 # FAMILIES env 覆寫供測試以 fixtures 跑 manifest/-all 路徑。
-read -r -a FAMILIES_DEFAULT <<< "${FAMILIES:-alpine ubuntu bigdata fbs open-webui rdp gmm taroko landlord}"
+read -r -a FAMILIES_DEFAULT <<< "${FAMILIES:-alpine ubuntu bigdata rdp gmm taroko landlord}"
 
 # 讀某 family conf 的單一鍵;subshell 隔離,避免 SERVICE_VERSION 等鍵撞名污染呼叫端
 # shellcheck source=/dev/null

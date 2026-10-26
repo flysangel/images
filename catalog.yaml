@@ -37,4 +37,12 @@ families:
     services:
       base:  { class: A, version: "24.04" }
       sshd:  { class: B, version_from: { package: openssh-server } }
-      knife: { class: B, version_from: { package: kubectl } }
+      knife: { class: B, version_from: { command: "kubectl version --client" } }
+  fbs:
+    distro: alpine
+    services:
+      base: { class: B, version_from: { command: "filebrowser version" } }
+  open-webui:
+    distro: alpine
+    services:
+      dbadm: { class: C }

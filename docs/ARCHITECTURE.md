@@ -119,7 +119,7 @@ FROM ${DOWNLOADER_IMAGE} AS downloader
 | `landlord` | 多租戶 SSH 平台 |
 | `taroko` | K8s node 與 server 映像，matrix 形態 |
 
-完整清單見 `ls infra/*/versions.conf`。跨 family 的 FROM 用 `grep -n '^FROM' infra/*/*.Dockerfile` 查，建置順序寫在 `infra/bin/img.sh` 的 `FAMILIES_DEFAULT` 註解。`open-webui:dbadm` 只用 `${ALPINE_BASE}` 這個版本值，FROM 的是上游 alpine 而不是 `alpine:base`。外部父映像大多經 `${REGISTRY_PREFIX}` 取自家同步的副本，例外寫在該 Dockerfile 的註解。base 層只有 root；`bigred` 由 sshd 層跑 provision 的 `bigred.txt` 建立，直接疊在 base 上的 service 只能用 root。
+完整清單見 `catalog.yaml` 與 `ls infra/*/versions.conf`（已遷移的 family 只在前者，沒有 `versions.conf`）。跨 family 的 FROM 用 `grep -n '^FROM' infra/*/*.Dockerfile` 查，建置順序寫在 `infra/bin/img.sh` 的 `FAMILIES_DEFAULT` 註解。`open-webui:dbadm` 的 FROM 是上游 alpine（`${LIBRARY_ALPINE_IMAGE}`）而不是 `alpine:base`。外部父映像大多經 `${REGISTRY_PREFIX}` 取自家同步的副本，例外寫在該 Dockerfile 的註解。base 層只有 root；`bigred` 由 sshd 層跑 provision 的 `bigred.txt` 建立，直接疊在 base 上的 service 只能用 root。
 
 **taroko 是 matrix**：沒有 `SERVICE_VERSION` 與 `CHAIN`，由 `NODES`、`SERVERS_CRI_DOCKER`、`SERVERS_DOCKER` 三個一維鍵宣告格子，`img.sh` 逐格迭代並把單格值當 CLI 覆寫傳進 `build_args()`。`KUBERNETES_VERSION` 與 `KEY_VERSION` 是矩陣衍生鍵，conf 裡沒有字面鍵；`family-lint.py` 的值表也要認得它們。矩陣之間無依賴，所以 `ci` 每建完一格就刪，控制磁碟峰值。taroko 沒有 testfile。三種格子的 tag 文法不同：node 直接用 K8s 版本當 tag，server 兩格帶 `cri-docker-` 與 `docker-` 前綴；下游讀 manifest 的三個陣列時照這個文法選映像。
 

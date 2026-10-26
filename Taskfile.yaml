@@ -43,7 +43,7 @@ tasks:
       - python3 bin/check-taskfile.py
       - task: lint:family
       - python3 bin/sync-lint.py sync/repository/*.yaml
-      - shellcheck -S warning infra/bin/img.sh sync/bin/start.sh bin/doctor.sh .githooks/pre-push tests/*.sh tests/fixtures/stubs/*
+      - shellcheck -S warning infra/bin/img.sh sync/bin/start.sh bin/doctor.sh .githooks/pre-push infra/fbs/smoke.sh tests/*.sh tests/fixtures/stubs/*
       - go run ./cmd/imgctl lint
       - go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 .github/workflows/*.yml
 

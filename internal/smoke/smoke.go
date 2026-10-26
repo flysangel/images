@@ -26,7 +26,7 @@ type FileCheck struct {
 }
 
 // Spec 是合併 defaults 之後，一個 service 的測試規格。
-// SSH 與 WaitPort 為 nil 表示容器沒有 sshd，改用 docker exec 驗。
+// SSH 為 nil 表示不做 ssh 登入檢查；SSH 與 WaitPort 都是 nil 表示容器沒有長駐服務，改用 docker exec 驗。
 type Spec struct {
 	Privileged bool        `yaml:"privileged"`
 	SSH        *SSH        `yaml:"ssh"`
@@ -78,14 +78,15 @@ func LoadSpec(path, service string) (Spec, error) {
 }
 
 // RunArgs 組出啟動測試容器的 docker run 指令。
-// 沒有 sshd 的容器（SSH 為 nil）可能啟動後就結束，所以改用 sleep 當 entrypoint 讓它活著。
+// 沒有 ssh、也沒有 wait_port 的容器可能啟動後就結束，所以改用 sleep 當 entrypoint 讓它活著。
+// 有 wait_port 的容器（例如 filebrowser）是長駐主程序，照映像自己的 entrypoint 啟動。
 func RunArgs(s Spec, image, name string) []string {
 	args := []string{"docker", "run", "-d"}
 	if s.Privileged {
 		args = append(args, "--privileged")
 	}
 	args = append(args, "--name", name)
-	if s.SSH == nil {
+	if !NeedsIP(s) {
 		return append(args, "--entrypoint", "sleep", image, "3600")
 	}
 	return append(args, image)
@@ -142,3 +143,6 @@ func FirstIP(out string) string {
 	}
 	return ""
 }
+
+// NeedsIP 表示這個規格要取容器 IP：要 ssh 登入，或要等埠。
+func NeedsIP(s Spec) bool { return s.SSH != nil || s.WaitPort != nil }

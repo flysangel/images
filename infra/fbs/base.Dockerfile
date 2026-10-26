@@ -1,8 +1,7 @@
 # fbs base 樣板:基於 alpine:base + filebrowser get.sh + docker_config.json
 # 收尾留 root：filebrowser 的設定檔放在 /root，get.sh 把執行檔裝進 /usr/local/bin，兩者都要 root。
-ARG REGISTRY_PREFIX
-ARG ALPINE_SERVICE_VERSION
-FROM ${REGISTRY_PREFIX}/alpine:base-${ALPINE_SERVICE_VERSION}
+ARG ALPINE_BASE_IMAGE
+FROM ${ALPINE_BASE_IMAGE}
 
 # [hadolint] warning: Last USER should not be root (DL3002)
 # hadolint ignore=DL3002
@@ -11,7 +10,7 @@ WORKDIR /root
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # /filebrowser 是 docker_config.json 裡 database、log、root 三個路徑的落點，部署時要掛成 volume 才保得住資料。
-# get.sh 走上游 master 分支，裝的是建置當下最新的 filebrowser，版本不受 SERVICE_VERSION 管。
+# get.sh 走上游 master 分支，裝的是建置當下最新的 filebrowser，版本由 catalog.yaml 的 version_from 在建置後探測。
 RUN \
     mkdir -p /filebrowser && \
     curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh | bash

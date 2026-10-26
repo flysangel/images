@@ -1,28 +1,23 @@
 # `infra/open-webui/` — Open WebUI dbadm 樣板
 
-單 service:`dbadm`(open-webui 帳號管理 helper),`UPSTREAM=alpine`。
+單 service：`dbadm`（open-webui 帳號管理 helper），FROM 上游 alpine。本 family 已遷到 `imgctl`：值在 `catalog.yaml`，煙霧測試在 `tests.yaml`，建置與測試由 `imgctl` 與 GitHub Actions 執行，不用 `img.sh`。
 
 ## 結構
 
 ```text
 open-webui/
-├── versions.conf             # SERVICE_VERSION=v1.0.1 + CHAIN=dbadm + UPSTREAM=alpine
-├── dbadm.Dockerfile          # FROM library/alpine:${ALPINE_BASE}
-├── dbadm.testfile
+├── dbadm.Dockerfile          # FROM ${LIBRARY_ALPINE_IMAGE}
+├── tests.yaml                # 煙霧測試：四支 helper 的權限與必要指令
 ├── adduser.sh                # COPY 進 image /bin/
 ├── deluser.sh
 ├── lsuser.sh
 ├── resetpasswd.sh
+├── .imgctl                   # 已遷移標記
 └── README.md
 ```
 
-`dbadm.Dockerfile` 就是正本,沒有渲染步驟——唯一的契約鍵 `ALPINE_BASE` 寫成光桿 `ARG`,值由 `img.sh` 依 `UPSTREAM=alpine` 從 `infra/alpine/versions.conf` 的 `BASE` 衍生(注意:本 image 直接 FROM `library/alpine`,不是 FROM `alpine:base`,因此用 `ALPINE_BASE` 而非 `ALPINE_SERVICE_VERSION`)。
-
-## Build
+## 看值表
 
 ```bash
-bash infra/bin/img.sh build open-webui          # build dbadm
-bash infra/bin/img.sh __dump_build_args open-webui dbadm   # 印 --build-arg 值表(debug)
-bash infra/bin/img.sh test open-webui dbadm     # smoke test
-bash infra/bin/img.sh ci open-webui             # build + test + rmi(磁碟友善)
+go run ./cmd/imgctl plan
 ```
