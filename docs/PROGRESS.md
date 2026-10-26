@@ -5,15 +5,22 @@
 - 標準驗證路徑：`task doctor` → `task lint` → `task test`，定義見 `AGENTS.md`〈完成定義〉。
 - L1、L2 是綠的。`check-taskfile.py` 已實際檢查 Taskfile，不再略過。
 - L3 未驗證：bigdata、landlord、rdp 等 family 還沒實建過，清單見〈待辦〉以「分批跑 `task ci:image`」開頭的那條。
+- alpine 已改由 `imgctl` 與 GitHub Actions 建置，其他 family 仍用 `img.sh`。過渡期的限制見 `AGENTS.md`〈alpine 已改由 imgctl 建置〉。
 - blocker：registry 上 `bigdata` 到 `landlord` 的映像鏈建不起來，見 `AGENTS.md`〈registry 上的映像鏈可能建不起來〉。
 
 ## 2. 待辦
 
 有觸發條件的，句尾括號寫什麼時候做。
 
+- 寫「遷移其餘 family 到 `imgctl`」的計畫：依依賴序遷 fbs、gmm、open-webui、taroko、ubuntu、rdp、bigdata、landlord。全部遷完後刪 `img.sh`、各 family 的 `versions.conf`、`config/versions.conf` 與 `.imgctl` 標記，manifest 改由 `imgctl` 產生
+- 把 GitHub Actions run 40312324353 step summary 的 `/dev/kvm` 結果與各顆 `df -h` 抄進 `docs/ARCHITECTURE.md`〈已知的結構性限制〉。重型 family（bigdata、rdp、taroko）用免費 runner 還是自架，要靠這兩個值決定
+- alpine 的輸入雜湊收整個 `infra/alpine/`，改 README 或 `*.testfile` 也會讓 alpine 全部重新發 tag。在 `imgctl` 加排除清單，只收 build context 會用到的檔
+- `infra/alpine/README.md` 開頭的結構樹與「值由 `img.sh` 供給」的敘述過時；`AGENTS.md`〈改了哪類檔要多驗什麼〉的 `config/versions.conf` 列仍寫「沒有程式驗」，現在 `imgctl lint` 會比對 `PROVISION_REF`
+- `tests/test_img.sh` 的 `*-all` 略過已遷移 family 那個 case，只斷言被略過的 family，沒斷言其他 family 照跑
+- `infra/alpine/tests.yaml` 的 podman 顆加真實檢查（例如 `podman info`），現在只驗指令存在。改 `tests.yaml` 會讓 alpine 全部重新發 tag，等下一次 alpine 本來就要升版時一起做
 - 用當前釘的 provision 重建 registry 上的映像並發新版：步驟見 README〈升 PROVISION_REF〉。taroko 的 tag 不帶版號，重建會覆蓋 registry 上的既有 tag，動手前先決定做法。這也會修好 `landlord:tenant-hadoop` 對著 registry 建不起來的時間錯位
 - 有 FROM 沒寫 tag、隱含 `latest`：`library/mariadb` 與 `minio/mc`，查法 `grep -n 'FROM .*\(mariadb\|minio/mc\)' infra/*/*.Dockerfile`。同步 CronJob 每晚把上游新版鏡進來，下次建置 base 就靜默換掉。在各 family 的 `versions.conf` 加頂層鍵（例如 `MARIADB_TAG`、`MC_TAG`）並在 FROM 使用。`minio/mc` 的同步規則目前只鏡 `latest`，要先改規則、同步一次才釘得了。等於換 base，整個 family 要升版並重建。同性質的還有 `infra/fbs/base.Dockerfile`：filebrowser 由上游 `get.sh` 的 `master` 分支裝最新版，沒釘版本或 checksum，改成釘 release URL 加 sha256，比照 alpine 的 `SEAWEEDFS_URL`
-- `sync/kustomization.yaml` 的 `newTag` 與 `infra/alpine/versions.conf` 的 `SERVICE_VERSION` 是同值兩處，alpine 升版要同步改，沒有人執法。漏改時 CronJob 靜默跑在舊映像上。在 `tests/test_cronjob.sh` 加一條斷言比對兩者
+- `sync/kustomization.yaml` 的 `newTag` 與 `infra/alpine/versions.conf` 的 `SERVICE_VERSION` 是同值兩處，alpine 升版要同步改，沒有人執法（過渡期 alpine 的版本值在 `catalog.yaml`，`versions.conf` 已凍結）。漏改時 CronJob 靜默跑在舊映像上。在 `tests/test_cronjob.sh` 加一條斷言比對兩者
 - `sync/secret/secret.env` 的「值一律裸寫」沒有人執法：加了引號，引號會一起進 Secret，叢集端每晚登入失敗才顯現。在 `tests/test_cronjob.sh` 加一條斷言：產物 Secret 的值解碼後不得以引號開頭
 - `bin/sync-lint.py` 用 Python 的 `re` 驗 tag regex，但 skopeo 用 Go 的 RE2。RE2 不支援 lookahead、lookbehind、反向引用，所以 Python 編得過不代表 skopeo 編得過，這條檢查有系統性的假陰性
 - `tests/test_img.sh` 開頭自檢 `tests/fixtures/stubs/` 的執行位元，沒有就退場。做完刪 `AGENTS.md`〈直接跑 `test_img.sh` 前先確認 stub 有執行位元〉講 stub 的那段

@@ -1,0 +1,17 @@
+registry: quay.io/flysangel
+provision_ref: v2.0.0
+upstream:
+  LIBRARY_ALPINE:
+    ref: quay.io/flysangel/library/alpine:3.21.3
+    digest: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+families:
+  alpine:
+    values:
+      BASE: "3.21.3"
+    aliases:
+      PROVISION_REF_IN: PROVISION_REF
+    services:
+      base:     { class: A, version: "3.21.3" }
+      sshd:     { clas: B, version_from: { package: openssh-server } }
+      runner:   { class: B, version_from: { command: "task --version" } }
+      k8stools: { class: C }

@@ -46,6 +46,8 @@ need gitleaks 'gitleaks' 'Gitleaks scans code' gitleaks --help
 need sudo 'sudo' '^Sudo version' sudo --version
 need podman 'podman' '^podman version' podman --version
 need skopeo 'skopeo' '^skopeo version' skopeo --version
+# imgctl 是 Go 程式，task test 跑 go test ./...
+need go 'Go 工具鏈' '^go version go' go version
 
 want kubectl 'apply:cronjob、apply:namespace 跑不了；tests/test_cronjob.sh 的真產物斷言印 [SKIP]，task test 照樣綠，改了 sync/ 要在有 kubectl 的機器重跑'
 

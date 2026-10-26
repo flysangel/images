@@ -1,0 +1,26 @@
+registry: quay.io/flysangel
+provision_ref: v2.0.0
+upstream:
+  LIBRARY_ALPINE:
+    ref: quay.io/flysangel/library/alpine:3.21.3
+    digest: sha256:1c4eef651f65e2f7daee7ee785882ac164b02b78fb74503052a26dc061c90474
+  MINIO_MC:
+    ref: quay.io/flysangel/minio/mc:latest
+    digest: sha256:eb4ea9884b77704230e2423e9004d2fa738dc272876b9cc41a297d29443b8780
+families:
+  alpine:
+    values:
+      BASE: "3.21.3"
+      SEAWEEDFS_URL: https://github.com/seaweedfs/seaweedfs/releases/download/4.36/linux_amd64.tar.gz
+      SEAWEEDFS_SHA256: ef49adec172b528c7a79c3c5e61fcf39da16d9b192908d6d4efda365592addef
+    aliases:
+      PROVISION_REF_IN: PROVISION_REF
+    services:
+      base:     { class: A, version: "3.21.3" }
+      sshd:     { class: B, version_from: { package: openssh-server } }
+      podman:   { class: B, version_from: { package: podman } }
+      qemu:     { class: B, version_from: { package: qemu-system-x86_64 } }
+      s3cli:    { class: A, version: "4.36" }
+      k8stools: { class: C }
+      k8sadm:   { class: C }
+      runner:   { class: B, version_from: { command: "task --version" } }

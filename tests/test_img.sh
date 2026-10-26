@@ -458,10 +458,10 @@ rm "${err_file}"
 teardown_test
 
 # ===== Case 30: 非 repo 根 cwd 組值表(輸入側 cwd 迴歸) =====
-# 不用 fixtures:清掉 FAMILIES_ROOT 等 env 遮蔽,驗 img.sh 以絕對路徑解析 conf 與 Dockerfile
+# 不用 fixtures:清掉 FAMILIES_ROOT 等 env 遮蔽,驗 img.sh 以絕對路徑解析 conf 與 Dockerfile；alpine 已遷到 imgctl，改用 ubuntu 的 base
 setup_test
 unset FAMILIES_ROOT ROOT_VERSIONS REGISTRY_PREFIX
-out="$( (cd /tmp && bash "${img}" __dump_build_args alpine base) 2>&1 )"
+out="$( (cd /tmp && bash "${img}" __dump_build_args ubuntu base) 2>&1 )"
 rc=$?
 check_exit "case 30 非 repo 根 cwd 組值表 exit 0" 0 "${rc}"
 if [[ "${out}" == *"REGISTRY_PREFIX="* && "${out}" == *"PROVISION_REF_IN="* ]]; then
@@ -630,6 +630,28 @@ else
     fail=$((fail+1))
 fi
 rm -rf "${crlf_root}"
+teardown_test
+
+# ===== Case 41: *-all 略過帶 .imgctl 標記的 family(已遷移到 imgctl) =====
+# fixture 在執行期複製:把 chain5 標成已遷移,taroko 照常。FAMILIES 縮成兩個 fixture family。
+setup_test
+mig_root="$(mktemp -d)"
+cp -r "${img_fixtures}/chain5" "${img_fixtures}/taroko" "${mig_root}/"
+: > "${mig_root}/chain5/.imgctl"
+export FAMILIES_ROOT="${mig_root}"
+export FAMILIES="chain5 taroko"
+for sub in build-all test-all ci-all; do
+    : > "${log_file}"
+    out_file="$(mktemp)"
+    bash "${img}" "${sub}" >"${out_file}" 2>&1
+    rc=$?
+    check_exit "case 41 ${sub} 含已遷移 family exit 0" 0 "${rc}"
+    check_log_count "case 41 ${sub} 不 build chain5" 'podman build .*chain5' 0
+    check_stderr_contains "case 41 ${sub} 印略過訊息" 'Info: chain5 已遷移到 imgctl，略過' "${out_file}"
+    rm "${out_file}"
+done
+unset FAMILIES
+rm -rf "${mig_root}"
 teardown_test
 
 echo "${pass} passed, ${fail} failed"

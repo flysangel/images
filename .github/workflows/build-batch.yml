@@ -1,0 +1,84 @@
+# 可重用 workflow：建一批 service（同批互不相依，matrix 並行）。
+# 前面各批的 ref-* artifact 下載到 parents/，imgctl build 靠它找上層映像。
+name: build-batch
+
+on:
+  workflow_call:
+    inputs:
+      services:
+        description: '這批要建的 service，JSON 陣列，元素為 <family>:<service>'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(inputs.services) }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: podman 登入 GHCR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: podman login ghcr.io -u "$ACTOR" --password-stdin <<<"$GITHUB_TOKEN"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: plan
+      - name: 下載前面各批的 ref 檔
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: ref-*
+          path: parents
+          merge-multiple: true
+      - name: 建置並推到 staging
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: |
+          mkdir -p parents out
+          go run ./cmd/imgctl build \
+            --plan plan.json \
+            --service "$SERVICE" \
+            --parents parents \
+            --push ghcr.io/flysangel/images-staging \
+            --sha "$GITHUB_SHA" \
+            --out out
+      - name: 算 artifact 名稱
+        id: name
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: echo "n=${SERVICE//:/_}" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ref-${{ steps.name.outputs.n }}
+          path: out/${{ steps.name.outputs.n }}.ref
+          if-no-files-found: error
+      - name: 記錄磁碟用量
+        if: always()
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: |
+          {
+            echo "### $SERVICE 磁碟用量"
+            echo '```'
+            df -h /
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

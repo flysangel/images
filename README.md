@@ -38,7 +38,7 @@ cp sync/secret/secret.env.example sync/secret/secret.env   # 填憑證，值一�
 
 ```bash
 task lint                  # 秒級靜態檢查，不需網路
-task try:image -- alpine   # 建 alpine 整條 chain 並跑煙霧測試
+task try:image -- ubuntu   # 建 ubuntu 整條 chain 並跑煙霧測試
 ```
 
 ### 建映像
@@ -46,26 +46,27 @@ task try:image -- alpine   # 建 alpine 整條 chain 並跑煙霧測試
 `<family>` 是 `infra/` 下有 `versions.conf` 的目錄名，`infra/bin/` 不是 family。只給 family 就依 `CHAIN` 走整條；給 service 就只做那一顆。
 
 ```bash
-bash infra/bin/img.sh __dump_build_args alpine sshd   # 印該顆會拿到的 --build-arg 值表
-task try:image    -- alpine sshd                      # 建置 → 煙霧測試，映像保留（主開發迴圈）
-task build:image  -- alpine                           # 只建不測，映像保留
-task smoke:image  -- alpine                           # 對已建映像跑 testfile，不建不刪
-task ci:image     -- alpine                           # 建置 → 煙霧測試 → 清除，全過才清
-task clean:image  -- alpine                           # 移除本機已建映像
+bash infra/bin/img.sh __dump_build_args ubuntu sshd   # 印該顆會拿到的 --build-arg 值表
+task try:image    -- ubuntu sshd                      # 建置 → 煙霧測試，映像保留（主開發迴圈）
+task build:image  -- ubuntu                           # 只建不測，映像保留
+task smoke:image  -- ubuntu                           # 對已建映像跑 testfile，不建不刪
+task ci:image     -- ubuntu                           # 建置 → 煙霧測試 → 清除，全過才清
+task clean:image  -- ubuntu                           # 移除本機已建映像
 ```
 
+- alpine 已遷移到 `imgctl`，不能用這幾條指令（`img.sh` 與 `task *:image` 都會失敗）。alpine 的值在 `catalog.yaml`，煙霧測試在 `infra/alpine/tests.yaml`，建置與測試由 `imgctl` 與 GitHub Actions 執行，見 `docs/ARCHITECTURE.md`。其餘範例以 ubuntu 為準。
 - 改了 base 層、要重建整條 chain，用 `task try:image -- <family>`。
 - 給 service 時不會先建它的上游。本機 podman 沒有上游映像時 podman 會去 registry 拉，拉不到就失敗；先 `task pull:image -- <family>` 墊底，或建整條 chain。
-- 單顆要覆寫契約值，`KEY=VAL` 必須搭 service：`task build:image -- alpine sshd SERVICE_VERSION=v1.0.4`。KEY 只接受大寫字母、數字與底線，小寫會直接報錯。整條 chain 不支援覆寫。
+- 單顆要覆寫契約值，`KEY=VAL` 必須搭 service：`task build:image -- ubuntu sshd SERVICE_VERSION=v1.0.4`。KEY 只接受大寫字母、數字與底線，小寫會直接報錯。整條 chain 不支援覆寫。
 - `taroko` 走 matrix，不接單一 service。`task ci:image -- taroko` 會先建完整個 matrix 才刪，磁碟峰值太大而被擋下；要建一格刪一格，改跑 `bash infra/bin/img.sh ci taroko`。
 - 全 repo 逐一 family 測試是 `bash infra/bin/img.sh test-all`，沒有 task 包裝。
 
 ### 推上 registry
 
 ```bash
-task push:image   -- alpine     # 先 build 讓本機有 tag，push 不建映像
-task pull:image   -- alpine     # 拉 chain 上游墊底
-task check:image  -- alpine     # skopeo inspect 線上查核映像存在
+task push:image   -- ubuntu     # 先 build 讓本機有 tag，push 不建映像
+task pull:image   -- ubuntu     # 拉 chain 上游墊底
+task check:image  -- ubuntu     # skopeo inspect 線上查核映像存在
 ```
 
 憑證由 task 的 `dotenv` 從 `sync/secret/secret.env` 注入，密碼走 `--password-stdin`、不落 argv。直接跑 `bash infra/bin/img.sh` 會繞過 `dotenv`，拿不到憑證。
@@ -90,17 +91,17 @@ task apply:cronjob          # kubectl apply -k 到叢集
 
 ### 升 PROVISION_REF
 
-改 `config/versions.conf` 的 `PROVISION_REF` 只影響之後的建置。registry 上既有的映像要重建，才會用上新版 provision：
+改 `config/versions.conf` 的 `PROVISION_REF` 只影響之後的建置。過渡期 alpine 的值另在 `catalog.yaml` 的 `provision_ref`，兩處都要改成同值；不同值時 `imgctl lint` 會擋下（`task lint` 會跑它）。registry 上既有的映像要重建，才會用上新版 provision：
 
 1. 用 `grep -l PROVISION_REF_IN infra/*/*.Dockerfile` 找出直接引用的 family。疊在它們上面的 family 要連帶重建。
-2. 照各 family `versions.conf` 的 `UPSTREAM` 順序（例如 ubuntu → bigdata → landlord），每個 family 先升 `SERVICE_VERSION`。alpine 升版時，`sync/kustomization.yaml` 的 `newTag` 要同步改，理由見 [docs/PROGRESS.md](docs/PROGRESS.md)。taroko 是 matrix family，沒有 `SERVICE_VERSION`，tag 也不帶版號，重建並推送會覆蓋 registry 上既有的 tag。動手前先決定怎麼處理 taroko。
-3. 對照 provision 新版的 `base.txt` 套件清單，更新 `infra/alpine/base.testfile` 與 `infra/ubuntu/base.testfile` 逐一 `command -v` 的名單。兩邊是同值兩處，沒有程式比對。
-4. 用 `task try:image -- <family>` 重建整條 chain。
-5. 照〈推上 registry〉push，再照〈發版〉重生 manifest 並打 tag。
+2. 照各 family `versions.conf` 的 `UPSTREAM` 順序（例如 ubuntu → bigdata → landlord），每個 family 先升 `SERVICE_VERSION`。alpine 不在 `versions.conf`：它的 `SERVICE_VERSION` 與版本值在 `catalog.yaml`，升版時 `sync/kustomization.yaml` 的 `newTag` 要同步改，理由見 [docs/PROGRESS.md](docs/PROGRESS.md)。taroko 是 matrix family，沒有 `SERVICE_VERSION`，tag 也不帶版號，重建並推送會覆蓋 registry 上既有的 tag。動手前先決定怎麼處理 taroko。
+3. 對照 provision 新版的 `base.txt` 套件清單，更新 `infra/ubuntu/base.testfile` 逐一 `command -v` 的名單。alpine 改更新 `infra/alpine/tests.yaml` 的 base 項目，不是 `base.testfile`。兩邊是同值兩處，沒有程式比對。
+4. 用 `task try:image -- <family>` 重建整條 chain。alpine 不適用：改 push 到 `main`，由 `imgctl` 與 CI 重建。
+5. 照〈推上 registry〉push，再照〈發版〉重生 manifest 並打 tag。alpine 的 push 由 CI 的 promote 完成。
 
 ### 升 alpine 或 ubuntu 基底
 
-改 `infra/alpine/versions.conf` 或 `infra/ubuntu/versions.conf` 的 `BASE`，與改 `PROVISION_REF` 一樣，只影響之後的建置。tag 是 `<family>:<service>-<SERVICE_VERSION>`，`BASE` 改了而 `SERVICE_VERSION` 不動，重建推送會覆蓋 registry 上同名的 tag，manifest 不變、下游靜默換映像。
+改 `infra/ubuntu/versions.conf` 的 `BASE`（alpine 例外：`infra/alpine/versions.conf` 已凍結，不要改；改 `catalog.yaml` 的 alpine 值，由 `imgctl` 與 CI 重建），與改 `PROVISION_REF` 一樣，只影響之後的建置。tag 是 `<family>:<service>-<SERVICE_VERSION>`，`BASE` 改了而 `SERVICE_VERSION` 不動，重建推送會覆蓋 registry 上同名的 tag，manifest 不變、下游靜默換映像。
 
 1. 升該 family 的 `SERVICE_VERSION`。
 2. 用 `grep -l 'UPSTREAM=.*alpine' infra/*/versions.conf`（或 `ubuntu`）找出以它當上游的 family，照 `infra/bin/img.sh` 的 `FAMILIES_DEFAULT` 順序逐一升 `SERVICE_VERSION`。

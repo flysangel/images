@@ -1,7 +1,6 @@
 # alpine podman 樣板:fuse-overlayfs + podman.txt 套件清單
-ARG REGISTRY_PREFIX
-ARG SERVICE_VERSION
-FROM ${REGISTRY_PREFIX}/alpine:sshd-${SERVICE_VERSION}
+ARG ALPINE_SSHD_IMAGE
+FROM ${ALPINE_SSHD_IMAGE}
 # 釘版穿透:provision 二跳腳本繼承此 ENV(不落回 main)
 ARG PROVISION_REF_IN
 ENV PROVISION_REF=${PROVISION_REF_IN}

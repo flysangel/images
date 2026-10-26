@@ -37,13 +37,15 @@ tasks:
       - bash bin/doctor.sh
 
   lint:
-    desc: '[開發] 離線靜態檢查：四大文件、Taskfile、lint:family、同步規則、shellcheck'
+    desc: '[開發] 靜態檢查：四大文件、Taskfile、lint:family、同步規則、shellcheck、imgctl lint、actionlint（imgctl 與 actionlint 首次執行要下載模組）'
     cmds:
       - python3 bin/check-docs.py
       - python3 bin/check-taskfile.py
       - task: lint:family
       - python3 bin/sync-lint.py sync/repository/*.yaml
       - shellcheck -S warning infra/bin/img.sh sync/bin/start.sh bin/doctor.sh .githooks/pre-push tests/*.sh tests/fixtures/stubs/*
+      - go run ./cmd/imgctl lint
+      - go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 .github/workflows/*.yml
 
   test:
     desc: '[開發] 離線測試：tests/ 的每一支（stub 攔截 podman、skopeo、sudo，不碰網路）'
@@ -55,6 +57,7 @@ tasks:
       - bash tests/test_sync_lint.sh
       - bash tests/test_sync_start.sh
       - bash tests/test_cronjob.sh
+      - go test ./...
 
   lint:family:
     desc: '[開發] 驗各 family 的 versions.conf 是否符合 schema（用法：task lint:family FAMILY_VERSIONS=<glob>）'
