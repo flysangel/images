@@ -1,7 +1,6 @@
 # alpine sshd 樣板:openssh-server + bigred user + sshenv + sudo
-ARG REGISTRY_PREFIX
-ARG SERVICE_VERSION
-FROM ${REGISTRY_PREFIX}/alpine:base-${SERVICE_VERSION}
+ARG ALPINE_BASE_IMAGE
+FROM ${ALPINE_BASE_IMAGE}
 
 # 釘版穿透:provision 二跳腳本繼承此 ENV(不落回 main)
 ARG PROVISION_REF_IN

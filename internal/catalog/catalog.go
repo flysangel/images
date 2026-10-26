@@ -81,7 +81,7 @@ func withPaths(err error, root *yaml.Node) string {
 		sub := lineRe.FindStringSubmatch(m)
 		n, _ := strconv.Atoi(sub[1])
 		if p := pathAtLine(root, n, sub[2]); p != "" {
-			return m + "欄位 " + p + " "
+			return "欄位 " + p + "：" + m
 		}
 		return m
 	})

@@ -1,12 +1,12 @@
 # alpine s3cli 樣板:multi-stage 取 minio/mc + 釘版 seaweedfs(SEAWEEDFS_URL + sha256)
 
-ARG REGISTRY_PREFIX
-ARG SERVICE_VERSION
+ARG MINIO_MC_IMAGE
+ARG ALPINE_SSHD_IMAGE
 # [hadolint] warning: Always tag the version of an image explicitly (DL3006)
 # hadolint ignore=DL3006
-FROM ${REGISTRY_PREFIX}/minio/mc AS mc
+FROM ${MINIO_MC_IMAGE} AS mc
 
-FROM ${REGISTRY_PREFIX}/alpine:sshd-${SERVICE_VERSION}
+FROM ${ALPINE_SSHD_IMAGE}
 
 USER root
 

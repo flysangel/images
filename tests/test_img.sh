@@ -458,10 +458,10 @@ rm "${err_file}"
 teardown_test
 
 # ===== Case 30: 非 repo 根 cwd 組值表(輸入側 cwd 迴歸) =====
-# 不用 fixtures:清掉 FAMILIES_ROOT 等 env 遮蔽,驗 img.sh 以絕對路徑解析 conf 與 Dockerfile
+# 不用 fixtures:清掉 FAMILIES_ROOT 等 env 遮蔽,驗 img.sh 以絕對路徑解析 conf 與 Dockerfile；alpine 已遷到 imgctl，改用 ubuntu 的 base
 setup_test
 unset FAMILIES_ROOT ROOT_VERSIONS REGISTRY_PREFIX
-out="$( (cd /tmp && bash "${img}" __dump_build_args alpine base) 2>&1 )"
+out="$( (cd /tmp && bash "${img}" __dump_build_args ubuntu base) 2>&1 )"
 rc=$?
 check_exit "case 30 非 repo 根 cwd 組值表 exit 0" 0 "${rc}"
 if [[ "${out}" == *"REGISTRY_PREFIX="* && "${out}" == *"PROVISION_REF_IN="* ]]; then

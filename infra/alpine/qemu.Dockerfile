@@ -1,7 +1,6 @@
 # alpine qemu 樣板:qemu-img + system-x86_64 + modules
-ARG REGISTRY_PREFIX
-ARG SERVICE_VERSION
-FROM ${REGISTRY_PREFIX}/alpine:sshd-${SERVICE_VERSION}
+ARG ALPINE_SSHD_IMAGE
+FROM ${ALPINE_SSHD_IMAGE}
 
 USER root
 

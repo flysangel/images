@@ -1,7 +1,6 @@
 # alpine k8sadm 樣板:基於 alpine:k8stools + 注入 kubeconfig template
-ARG REGISTRY_PREFIX
-ARG SERVICE_VERSION
-FROM ${REGISTRY_PREFIX}/alpine:k8stools-${SERVICE_VERSION}
+ARG ALPINE_K8STOOLS_IMAGE
+FROM ${ALPINE_K8STOOLS_IMAGE}
 
 USER bigred
 WORKDIR /home/bigred

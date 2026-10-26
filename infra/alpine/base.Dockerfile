@@ -1,9 +1,8 @@
 # alpine base 樣板:apk 裝 sudo/bash/curl,跑 provision 的 base + ntp 設定
-# BASE 由 infra/alpine/versions.conf 經 img.sh 以 --build-arg 注入（光桿 ARG＝契約值）
+# 上游映像由 FROM ${LIBRARY_ALPINE_IMAGE} 供給（catalog.yaml 的 digest），不再注入 BASE
 
-ARG REGISTRY_PREFIX
-ARG BASE
-FROM ${REGISTRY_PREFIX}/library/alpine:${BASE}
+ARG LIBRARY_ALPINE_IMAGE
+FROM ${LIBRARY_ALPINE_IMAGE}
 # 釘版穿透:provision 二跳腳本繼承此 ENV(不落回 main)
 ARG PROVISION_REF_IN
 ENV PROVISION_REF=${PROVISION_REF_IN}
