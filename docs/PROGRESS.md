@@ -5,9 +5,29 @@
 - 標準驗證路徑：`task doctor` → `task lint` → `task test`，定義見 `AGENTS.md`〈完成定義〉。
 - L1、L2 是綠的。`check-taskfile.py` 已實際檢查 Taskfile，不再略過。
 - L3 未驗證：bigdata、landlord、rdp 等 family 還沒實建過，清單見〈待辦〉以「分批跑 `task ci:image`」開頭的那條。
+- alpine 已改由 `imgctl` 與 GitHub Actions 建置，其他 family 仍用 `img.sh`。過渡期的限制見 `AGENTS.md`〈alpine 已改由 imgctl 建置〉。
 - blocker：registry 上 `bigdata` 到 `landlord` 的映像鏈建不起來，見 `AGENTS.md`〈registry 上的映像鏈可能建不起來〉。
 
-## 2. 待辦
+## 2. 進行中
+
+這個分支把 alpine 遷到 catalog、`imgctl` 與 GitHub Actions，當作遷移的原型。
+
+做到哪：原型的四題都通過，驗證在 GitHub Actions run 40312324353，promote 經 production 環境核准。
+
+- 升版規則：`imgctl plan PROVISION_REF=v2.1.0` 判定 alpine 8 顆全部重建，範圍與 README〈升 PROVISION_REF〉推得的一致。不帶覆寫時 8 顆都是「輸入未變」，不重建。
+- 分批建置：build-0 到 build-4 五批全綠，後批以前批推上 GHCR 的 `ref@sha256` 當 FROM。
+- privileged 測試：8 顆全綠，含 podman 與 qemu。
+- promote 保住 digest：quay 上 8 個新 tag 的 digest 與 GHCR 暫存區相同，label `org.flysangel.input-hash` 都在，既有 `alpine:k8sadm-v1.0.3` 的 digest 推送前後相同。
+
+CI 建置用 podman，不是設計文件寫的 buildx：BuildKit 掛唯讀 `/etc/resolv.conf`，provision 的 `base.txt` 寫不進去。`docs/images-manifest.yaml` 原型期間沒改，仍是 alpine v1.0.3 系列。
+
+下一步：
+
+1. 使用者決定要不要寫「遷移其餘 family」的計畫。
+2. merge 回 main 前，跑最終的全分支審查。
+3. merge 前刪掉本節。
+
+## 3. 待辦
 
 有觸發條件的，句尾括號寫什麼時候做。
 
