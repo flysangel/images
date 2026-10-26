@@ -76,17 +76,14 @@ func ResolveParents(item plan.Item, p *plan.Plan, dir, registryPrefix string, rc
 		if !os.IsNotExist(err) {
 			return nil, err
 		}
-		var tag string
-		for _, batch := range p.Batches {
-			for _, it := range batch {
-				if it.Family == fam && it.Service == svc {
-					tag = it.Tag
-				}
-			}
+		pi, found := findItem(p, fam, svc)
+		if found && pi.Rebuild {
+			return nil, fmt.Errorf("上層 %s 本輪重建，但 %s 不存在（ref 檔沒傳到？）", par, filepath.Join(dir, fam+"_"+svc+".ref"))
 		}
-		if tag == "" {
+		if !found || pi.Tag == "" {
 			return nil, fmt.Errorf("上層 %s 本輪沒有 ref 檔，plan 也沒有可用的 tag", par)
 		}
+		tag := pi.Tag
 		repo := registryPrefix + "/" + fam
 		d, err := rc.Digest(repo + ":" + tag)
 		if err != nil {
@@ -113,4 +110,15 @@ func ProbeCommand(family string, vf *catalog.VersionFrom, image string) (string,
 		return "dpkg", append(base, "dpkg-query", "-W", "-f=${Version}", vf.Package), nil
 	}
 	return "apk", append(base, "apk", "info", "-e", "-v", vf.Package), nil
+}
+
+func findItem(p *plan.Plan, family, service string) (plan.Item, bool) {
+	for _, b := range p.Batches {
+		for _, it := range b {
+			if it.Family == family && it.Service == service {
+				return it, true
+			}
+		}
+	}
+	return plan.Item{}, false
 }

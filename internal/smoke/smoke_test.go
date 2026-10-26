@@ -62,11 +62,11 @@ func join(steps [][]string) string {
 }
 
 func TestSteps(t *testing.T) {
-	out := join(Steps(load(t, "k8sadm"), "10.0.0.5"))
+	out := join(Steps(load(t, "k8sadm"), "10.0.0.5", "ctr1"))
 	for _, want := range []string{
 		"sshpass -p bigred ssh",
 		"bigred@10.0.0.5",
-		"command -v kind",
+		"docker exec ctr1 sh -c command -v kind",
 		"stat -c '%a %U' /home/bigred/.kube/config.tmp",
 		"600 bigred",
 	} {
@@ -74,10 +74,16 @@ func TestSteps(t *testing.T) {
 			t.Errorf("缺 %q\n%s", want, out)
 		}
 	}
+	// ssh 只驗登入：其餘檢查一律走 docker exec（非互動 ssh 的 PATH 可能缺 /usr/local/bin）。
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(line, "sshpass") && !strings.HasSuffix(line, "echo ssh test ok") {
+			t.Errorf("ssh 只該用來驗登入：%s", line)
+		}
+	}
 }
 
 func TestStepsExecMode(t *testing.T) {
-	out := join(Steps(load(t, "base"), "ctr1"))
+	out := join(Steps(load(t, "base"), "", "ctr1"))
 	for _, want := range []string{"docker exec ctr1 sh -c", "command -v sudo", "Asia/Taipei"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("缺 %q\n%s", want, out)
@@ -89,7 +95,7 @@ func TestStepsExecMode(t *testing.T) {
 }
 
 func TestStepsScript(t *testing.T) {
-	steps := Steps(load(t, "esc"), "10.0.0.5")
+	steps := Steps(load(t, "esc"), "10.0.0.5", "ctr1")
 	if len(steps) != 1 || !slices.Equal(steps[0], []string{"bash", "infra/alpine/esc.sh", "10.0.0.5"}) {
 		t.Errorf("%v", steps)
 	}

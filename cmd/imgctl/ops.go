@@ -168,21 +168,21 @@ func runTest(args []string) int {
 	}
 	defer exec.Command("docker", "rm", "-f", name).Run()
 
-	target := name
+	ip := ""
 	if spec.SSH != nil {
 		out, err := exec.Command("docker", "inspect", "-f", "{{.NetworkSettings.IPAddress}}", name).Output()
 		if err != nil {
 			return fail("docker inspect 失敗：%v", err)
 		}
-		target = strings.TrimSpace(string(out))
+		ip = strings.TrimSpace(string(out))
 		if spec.WaitPort != nil {
-			if err := waitPort(target, *spec.WaitPort, 60*time.Second); err != nil {
+			if err := waitPort(ip, *spec.WaitPort, 60*time.Second); err != nil {
 				return fail("%v", err)
 			}
 		}
 	}
 	failed := 0
-	for _, step := range smoke.Steps(spec, target) {
+	for _, step := range smoke.Steps(spec, ip, name) {
 		label := step[len(step)-1]
 		if spec.Script != "" {
 			label = spec.Script

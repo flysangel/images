@@ -107,6 +107,12 @@ func TestResolveParents(t *testing.T) {
 		t.Errorf("ref 檔：%v %v", got, err)
 	}
 
+	// 上層本輪重建但 ref 檔沒到（例如 artifact 下載失敗）：不可退回查 registry。
+	pr := &plan.Plan{Batches: [][]plan.Item{{{Family: "alpine", Service: "base", Tag: "base-3.21.3", Rebuild: true}}}}
+	if _, err := ResolveParents(it, pr, t.TempDir(), host+"/fam", rc); err == nil || !strings.Contains(err.Error(), "alpine/base") {
+		t.Errorf("重建的上層缺 ref 檔應回錯並點名上層：%v", err)
+	}
+
 	// 上層不在目錄、plan 也沒有可用 tag：回錯。
 	p2 := &plan.Plan{Batches: [][]plan.Item{{{Family: "alpine", Service: "base"}}}}
 	if _, err := ResolveParents(it, p2, t.TempDir(), host+"/fam", rc); err == nil {

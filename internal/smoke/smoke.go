@@ -91,33 +91,36 @@ func RunArgs(s Spec, image, name string) []string {
 }
 
 // Steps 把規格展開成依序執行的指令，每一步以 exit code 判定成敗。
-// target：有 SSH 時是容器 IP，沒有時是容器名稱。
-func Steps(s Spec, target string) [][]string {
+// ip 是容器 IP（有 SSH 時才用），container 是容器名稱。
+// ssh 只驗登入；command、檔案與時區一律走 docker exec（root，PATH 完整），
+// 因為非互動 ssh 的 PATH 可能缺 /usr/local/bin，會誤報。
+func Steps(s Spec, ip, container string) [][]string {
 	if s.Script != "" {
+		target := container
+		if s.SSH != nil {
+			target = ip
+		}
 		return [][]string{{"bash", s.Script, target}}
 	}
-	run := func(remote string) []string {
-		if s.SSH == nil {
-			return []string{"docker", "exec", target, "sh", "-c", remote}
-		}
-		return []string{
-			"sshpass", "-p", s.SSH.Password, "ssh",
-			"-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
-			s.SSH.User + "@" + target, remote,
-		}
+	exec := func(remote string) []string {
+		return []string{"docker", "exec", container, "sh", "-c", remote}
 	}
 	var steps [][]string
 	if s.SSH != nil {
-		steps = append(steps, run("echo ssh test ok"))
+		steps = append(steps, []string{
+			"sshpass", "-p", s.SSH.Password, "ssh",
+			"-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
+			s.SSH.User + "@" + ip, "echo ssh test ok",
+		})
 	}
 	for _, c := range s.Commands {
-		steps = append(steps, run("command -v "+c))
+		steps = append(steps, exec("command -v "+c))
 	}
 	for _, f := range s.Files {
-		steps = append(steps, run(fmt.Sprintf("test \"$(stat -c '%%a %%U' %s)\" = '%s %s'", f.Path, f.Mode, f.Owner)))
+		steps = append(steps, exec(fmt.Sprintf("test \"$(stat -c '%%a %%U' %s)\" = '%s %s'", f.Path, f.Mode, f.Owner)))
 	}
 	if s.Timezone != "" {
-		steps = append(steps, run(fmt.Sprintf("{ readlink /etc/localtime; cat /etc/timezone; } 2>/dev/null | grep -q %s", strconv.Quote(s.Timezone))))
+		steps = append(steps, exec(fmt.Sprintf("{ readlink /etc/localtime; cat /etc/timezone; } 2>/dev/null | grep -q %s", strconv.Quote(s.Timezone))))
 	}
 	return steps
 }
