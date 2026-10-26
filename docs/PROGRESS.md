@@ -14,12 +14,12 @@
 
 做到哪：原型的四題都通過，驗證在 GitHub Actions run 40312324353，promote 經 production 環境核准。
 
-- 升版規則：`imgctl plan PROVISION_REF=v2.1.0` 判定 alpine 8 顆全部重建，範圍與 README〈升 PROVISION_REF〉推得的一致。不帶覆寫時 8 顆都是「輸入未變」，不重建。
-- 分批建置：build-0 到 build-4 五批全綠，後批以前批推上 GHCR 的 `ref@sha256` 當 FROM。
-- privileged 測試：8 顆全綠，含 podman 與 qemu。
-- promote 保住 digest：quay 上 8 個新 tag 的 digest 與 GHCR 暫存區相同，label `org.flysangel.input-hash` 都在，既有 `alpine:k8sadm-v1.0.3` 的 digest 推送前後相同。
+- 升版規則：`imgctl plan PROVISION_REF=v2.1.0` 判定 alpine 全部重建，範圍與 README〈升 PROVISION_REF〉推得的一致。不帶覆寫時 alpine 全部是「輸入未變」，不重建。
+- 分批建置：build-0 起的各批全綠，後批以前批推上 GHCR 的 `ref@sha256` 當 FROM。
+- privileged 測試：alpine 全部全綠，含 podman 與 qemu。
+- promote 保住 digest：quay 上新推的 tag 的 digest 與 GHCR 暫存區相同，label `org.flysangel.input-hash` 都在，既有 `alpine:k8sadm-v1.0.3` 的 digest 推送前後相同。
 
-CI 建置用 podman，不是設計文件寫的 buildx：BuildKit 掛唯讀 `/etc/resolv.conf`，provision 的 `base.txt` 寫不進去。`docs/images-manifest.yaml` 原型期間沒改，仍是 alpine v1.0.3 系列。
+CI 建置用 podman，不是設計文件（本機 spec，不進版控）寫的 buildx：BuildKit 掛唯讀 `/etc/resolv.conf`，provision 的 `base.txt` 寫不進去。`docs/images-manifest.yaml` 原型期間沒改，仍是 alpine v1.0.3 系列。
 
 下一步：
 
@@ -33,7 +33,7 @@ CI 建置用 podman，不是設計文件寫的 buildx：BuildKit 掛唯讀 `/etc
 
 - 用當前釘的 provision 重建 registry 上的映像並發新版：步驟見 README〈升 PROVISION_REF〉。taroko 的 tag 不帶版號，重建會覆蓋 registry 上的既有 tag，動手前先決定做法。這也會修好 `landlord:tenant-hadoop` 對著 registry 建不起來的時間錯位
 - 有 FROM 沒寫 tag、隱含 `latest`：`library/mariadb` 與 `minio/mc`，查法 `grep -n 'FROM .*\(mariadb\|minio/mc\)' infra/*/*.Dockerfile`。同步 CronJob 每晚把上游新版鏡進來，下次建置 base 就靜默換掉。在各 family 的 `versions.conf` 加頂層鍵（例如 `MARIADB_TAG`、`MC_TAG`）並在 FROM 使用。`minio/mc` 的同步規則目前只鏡 `latest`，要先改規則、同步一次才釘得了。等於換 base，整個 family 要升版並重建。同性質的還有 `infra/fbs/base.Dockerfile`：filebrowser 由上游 `get.sh` 的 `master` 分支裝最新版，沒釘版本或 checksum，改成釘 release URL 加 sha256，比照 alpine 的 `SEAWEEDFS_URL`
-- `sync/kustomization.yaml` 的 `newTag` 與 `infra/alpine/versions.conf` 的 `SERVICE_VERSION` 是同值兩處，alpine 升版要同步改，沒有人執法。漏改時 CronJob 靜默跑在舊映像上。在 `tests/test_cronjob.sh` 加一條斷言比對兩者
+- `sync/kustomization.yaml` 的 `newTag` 與 `infra/alpine/versions.conf` 的 `SERVICE_VERSION` 是同值兩處，alpine 升版要同步改，沒有人執法（過渡期 alpine 的版本值在 `catalog.yaml`，`versions.conf` 已凍結）。漏改時 CronJob 靜默跑在舊映像上。在 `tests/test_cronjob.sh` 加一條斷言比對兩者
 - `sync/secret/secret.env` 的「值一律裸寫」沒有人執法：加了引號，引號會一起進 Secret，叢集端每晚登入失敗才顯現。在 `tests/test_cronjob.sh` 加一條斷言：產物 Secret 的值解碼後不得以引號開頭
 - `bin/sync-lint.py` 用 Python 的 `re` 驗 tag regex，但 skopeo 用 Go 的 RE2。RE2 不支援 lookahead、lookbehind、反向引用，所以 Python 編得過不代表 skopeo 編得過，這條檢查有系統性的假陰性
 - `tests/test_img.sh` 開頭自檢 `tests/fixtures/stubs/` 的執行位元，沒有就退場。做完刪 `AGENTS.md`〈直接跑 `test_img.sh` 前先確認 stub 有執行位元〉講 stub 的那段
