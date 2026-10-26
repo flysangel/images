@@ -66,10 +66,10 @@ done
 
 ### 不能直接 `podman build`
 
-值全部由 `--build-arg` 供給。單獨 build 某個 Dockerfile，光桿 ARG 會展開成空字串：`FROM ${REGISTRY_PREFIX}/…` 變成空的，錯誤訊息是 `Error: determining starting point for build: no FROM statement found`，離根因很遠。另一個後果是 pipefail：podman 預設的 OCI 格式會忽略 `SHELL`，`curl … | bash` 在 curl 失敗時照樣建成映像；`pbuild` 固定帶 `--format docker` 才讓 `SHELL` 生效。**所有建置一律經 `img.sh` 或 `task image:*`。**alpine 例外：它改走 `imgctl`，見〈alpine 已改由 imgctl 建置〉。要看某顆會拿到哪些值（alpine 不適用，改看 `imgctl plan`）：
+值全部由 `--build-arg` 供給。單獨 build 某個 Dockerfile，光桿 ARG 會展開成空字串：`FROM ${REGISTRY_PREFIX}/…` 變成空的，錯誤訊息是 `Error: determining starting point for build: no FROM statement found`，離根因很遠。另一個後果是 pipefail：podman 預設的 OCI 格式會忽略 `SHELL`，`curl … | bash` 在 curl 失敗時照樣建成映像；`pbuild` 固定帶 `--format docker` 才讓 `SHELL` 生效。**所有建置一律經 `img.sh` 或 `task image:*`。**已遷移的 family 例外：它們改走 `imgctl`，見〈已遷移的 family 改由 imgctl 建置〉。要看某顆會拿到哪些值（已遷移的 family 不適用，改看 `imgctl plan`）：
 
 ```bash
-bash infra/bin/img.sh __dump_build_args ubuntu sshd
+bash infra/bin/img.sh __dump_build_args rdp lxqt
 bash infra/bin/img.sh __dump_build_args taroko node KUBERNETES_VERSION=v1.34.0
 ```
 
@@ -84,11 +84,11 @@ CHAIN="base sshd podman"    # 對
 
 `task lint:family` 擋這條，也擋未閉合引號與值含 `$` 或反引號。
 
-### alpine 已改由 imgctl 建置
+### 已遷移的 family 改由 imgctl 建置
 
-alpine 只能經 `imgctl` 與 GitHub Actions 建置。`img.sh` 與 `task build:image -- alpine` 不適用：alpine 的 Dockerfile，FROM 已改成光桿 `*_IMAGE`，沒有 `imgctl` 供值就建不起來。其他 family 照舊用 `img.sh`。
+哪些 family 已遷移：看 `infra/*/.imgctl`，有這個標記檔的 family 就是。這些 family 只能經 `imgctl` 與 GitHub Actions 建置。`img.sh` 與 `task build:image` 不適用：它們的 Dockerfile，FROM 已改成光桿 `*_IMAGE`，沒有 `imgctl` 供值就建不起來。其他 family 照舊用 `img.sh`。
 
-`infra/alpine/versions.conf` 凍結，不要改。它只供其他 family 取 alpine 的上游值。alpine 自己的值看 `catalog.yaml`。
+已遷移 family 的 `versions.conf` 凍結，不要改。它只供尚未遷移的 family 取上游值。已遷移 family 自己的值看 `catalog.yaml`。
 
 ### registry 上的映像鏈可能建不起來
 
@@ -152,7 +152,7 @@ gateway 帳號名、tenant pod 的 hostname、tenant 內建的使用者、namesp
 
 | 改了什麼 | 跑什麼 |
 |---|---|
-| family 的 `versions.conf` 或 `*.Dockerfile` | `task lint:family`；看值表用 `__dump_build_args`（alpine 不適用，改看 `imgctl plan`）；真要確認建得起來只有 `task try:image -- <family> <service>`。alpine 升版再跑 `bash tests/test_cronjob.sh`，`sync/kustomization.yaml` 的 `newTag` 要同步改。過渡期 alpine 的版本值在 `catalog.yaml`，`infra/alpine/versions.conf` 已凍結 |
+| family 的 `versions.conf` 或 `*.Dockerfile` | `task lint:family`；看值表用 `__dump_build_args`（已遷移的 family 不適用，改看 `imgctl plan`）；真要確認建得起來只有 `task try:image -- <family> <service>`。alpine 升版再跑 `bash tests/test_cronjob.sh`，`sync/kustomization.yaml` 的 `newTag` 要同步改。過渡期已遷移的 family，版本值在 `catalog.yaml`，它的 `versions.conf` 已凍結 |
 | `config/versions.conf` | 沒有程式驗。鍵名與 `vX.Y.Z` 值靠人維持 |
 | `infra/bin/` | `bash tests/test_img.sh`，直接跑前先確認 stub 有效 |
 | `bin/family-lint.py` | `bash tests/test_family_lint.sh` |
