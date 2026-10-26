@@ -1,0 +1,11 @@
+# open-webui family 的煙霧測試規格，由 `imgctl test` 讀取。
+# dbadm 只為 exec 腳本活著，沒有 sshd 也沒有監聽埠，改用 docker exec 驗。
+# 四支 helper 驗權限 755 與擁有者 root，等於舊 testfile 的 `test -x` 再加嚴。
+services:
+  dbadm:
+    commands: [sqlite3, htpasswd, uuidgen, nano]
+    files:
+      - { path: /bin/adduser.sh, mode: "755", owner: root }
+      - { path: /bin/deluser.sh, mode: "755", owner: root }
+      - { path: /bin/lsuser.sh, mode: "755", owner: root }
+      - { path: /bin/resetpasswd.sh, mode: "755", owner: root }

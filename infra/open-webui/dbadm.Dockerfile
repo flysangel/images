@@ -1,8 +1,7 @@
 # open-webui dbadm 樣板:基於 library/alpine,裝 sqlite/apache2-utils/uuidgen 等維運工具 + 帳號管理 helper
 # 執行期要設 SQLITE_DB 並把 open-webui 的 sqlite 檔掛進容器，映像本身不設也不掛；helper 腳本靠它找資料庫。
-ARG REGISTRY_PREFIX
-ARG ALPINE_BASE
-FROM ${REGISTRY_PREFIX}/library/alpine:${ALPINE_BASE}
+ARG LIBRARY_ALPINE_IMAGE
+FROM ${LIBRARY_ALPINE_IMAGE}
 
 USER root
 
