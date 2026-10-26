@@ -45,6 +45,7 @@ tasks:
       - python3 bin/sync-lint.py sync/repository/*.yaml
       - shellcheck -S warning infra/bin/img.sh sync/bin/start.sh bin/doctor.sh .githooks/pre-push tests/*.sh tests/fixtures/stubs/*
       - go run ./cmd/imgctl lint
+      - go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 .github/workflows/*.yml
 
   test:
     desc: '[開發] 離線測試：tests/ 的每一支（stub 攔截 podman、skopeo、sudo，不碰網路）'

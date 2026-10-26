@@ -1,0 +1,246 @@
+# imgctl 分批建置、測試與 promote。
+# plan 決定哪些 service 要重建；build-0 到 build-7 依批次建到 GHCR staging；
+# test 煙霧測試並決定 tag；promote 只在 push 時把通過的映像推到 quay。
+name: images
+
+on:
+  pull_request:
+  push:
+    branches: [main, imgctl-alpine]
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      all: ${{ steps.batches.outputs.all }}
+      batch0: ${{ steps.batches.outputs.batch0 }}
+      batch1: ${{ steps.batches.outputs.batch1 }}
+      batch2: ${{ steps.batches.outputs.batch2 }}
+      batch3: ${{ steps.batches.outputs.batch3 }}
+      batch4: ${{ steps.batches.outputs.batch4 }}
+      batch5: ${{ steps.batches.outputs.batch5 }}
+      batch6: ${{ steps.batches.outputs.batch6 }}
+      batch7: ${{ steps.batches.outputs.batch7 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: 產生 plan
+        run: go run ./cmd/imgctl plan --json > plan.json
+      - name: 拆成每批要重建的 service
+        id: batches
+        run: |
+          for i in 0 1 2 3 4 5 6 7; do
+            b=$(jq -c "[.batches[$i][]? | select(.rebuild) | \"\(.family):\(.service)\"]" plan.json)
+            echo "batch$i=$b" >> "$GITHUB_OUTPUT"
+          done
+          a=$(jq -c '[.batches[][] | select(.rebuild) | "\(.family):\(.service)"]' plan.json)
+          echo "all=$a" >> "$GITHUB_OUTPUT"
+          n=$(jq '[.batches | length] | .[0]' plan.json)
+          if [ "$n" -gt 8 ]; then
+            echo "Error: plan 有 $n 批，workflow 只支援 8 批" >&2
+            exit 1
+          fi
+          echo "Info: 要重建 $a" >&2
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plan
+          path: plan.json
+
+  build-0:
+    needs: [plan]
+    if: ${{ always() && !failure() && !cancelled() && needs.plan.outputs.batch0 != '[]' }}
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/build-batch.yml
+    with:
+      services: ${{ needs.plan.outputs.batch0 }}
+
+  build-1:
+    needs: [plan, build-0]
+    if: ${{ always() && !failure() && !cancelled() && needs.plan.outputs.batch1 != '[]' }}
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/build-batch.yml
+    with:
+      services: ${{ needs.plan.outputs.batch1 }}
+
+  build-2:
+    needs: [plan, build-1]
+    if: ${{ always() && !failure() && !cancelled() && needs.plan.outputs.batch2 != '[]' }}
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/build-batch.yml
+    with:
+      services: ${{ needs.plan.outputs.batch2 }}
+
+  build-3:
+    needs: [plan, build-2]
+    if: ${{ always() && !failure() && !cancelled() && needs.plan.outputs.batch3 != '[]' }}
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/build-batch.yml
+    with:
+      services: ${{ needs.plan.outputs.batch3 }}
+
+  build-4:
+    needs: [plan, build-3]
+    if: ${{ always() && !failure() && !cancelled() && needs.plan.outputs.batch4 != '[]' }}
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/build-batch.yml
+    with:
+      services: ${{ needs.plan.outputs.batch4 }}
+
+  build-5:
+    needs: [plan, build-4]
+    if: ${{ always() && !failure() && !cancelled() && needs.plan.outputs.batch5 != '[]' }}
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/build-batch.yml
+    with:
+      services: ${{ needs.plan.outputs.batch5 }}
+
+  build-6:
+    needs: [plan, build-5]
+    if: ${{ always() && !failure() && !cancelled() && needs.plan.outputs.batch6 != '[]' }}
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/build-batch.yml
+    with:
+      services: ${{ needs.plan.outputs.batch6 }}
+
+  build-7:
+    needs: [plan, build-6]
+    if: ${{ always() && !failure() && !cancelled() && needs.plan.outputs.batch7 != '[]' }}
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/build-batch.yml
+    with:
+      services: ${{ needs.plan.outputs.batch7 }}
+
+  test:
+    needs: [plan, build-0, build-1, build-2, build-3, build-4, build-5, build-6, build-7]
+    if: ${{ always() && !failure() && !cancelled() && needs.plan.outputs.all != '[]' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.plan.outputs.all) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: 安裝 sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: plan
+      - name: 算 artifact 名稱
+        id: name
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: echo "n=${SERVICE//:/_}" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        with:
+          name: ref-${{ steps.name.outputs.n }}
+          path: refs
+      - name: 煙霧測試
+        env:
+          SERVICE: ${{ matrix.service }}
+          N: ${{ steps.name.outputs.n }}
+        run: |
+          go run ./cmd/imgctl test --service "$SERVICE" --image "$(cat "refs/$N.ref")"
+      - name: 決定 tag
+        env:
+          SERVICE: ${{ matrix.service }}
+          N: ${{ steps.name.outputs.n }}
+        run: |
+          mkdir -p tags
+          go run ./cmd/imgctl version --plan plan.json --service "$SERVICE" --image "$(cat "refs/$N.ref")" > "tags/$N.tag"
+          echo "Info: $SERVICE tag = $(cat "tags/$N.tag")" >&2
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tag-${{ steps.name.outputs.n }}
+          path: tags/${{ steps.name.outputs.n }}.tag
+          if-no-files-found: error
+      - name: 記錄 /dev/kvm
+        if: always()
+        run: |
+          if test -e /dev/kvm; then k=存在; else k=不存在; fi
+          echo "### ${{ matrix.service }}：/dev/kvm $k" >> "$GITHUB_STEP_SUMMARY"
+
+  promote:
+    needs: [plan, test]
+    if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/imgctl-alpine') && needs.plan.outputs.all != '[]' && needs.test.result == 'success' }}
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: promote
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/login-action@v3
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ref-*
+          path: refs
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: tag-*
+          path: tags
+          merge-multiple: true
+      - name: 推進 quay
+        env:
+          ALL: ${{ needs.plan.outputs.all }}
+        run: |
+          echo "### promote" >> "$GITHUB_STEP_SUMMARY"
+          for s in $(echo "$ALL" | jq -r '.[]'); do
+            n=${s//:/_}
+            fam=${s%%:*}
+            if [ ! -f "refs/$n.ref" ] || [ ! -f "tags/$n.tag" ]; then
+              echo "Error: 缺 $n 的 ref 或 tag 檔" >&2
+              exit 1
+            fi
+            from=$(cat "refs/$n.ref")
+            t=$(cat "tags/$n.tag")
+            go run ./cmd/imgctl promote --from "$from" --to "quay.io/flysangel/$fam:$t"
+            echo "- \`$fam:$t\` → \`${from##*@}\`" >> "$GITHUB_STEP_SUMMARY"
+          done
