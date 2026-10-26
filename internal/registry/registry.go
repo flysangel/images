@@ -53,7 +53,7 @@ func (c *client) ListTags(repo string) ([]string, error) {
 	}
 	tags, err := remote.List(r, c.opts...)
 	if err != nil {
-		if isNotFound(err) {
+		if isNotFound(err) || isUnauthorizedNotFound(err) {
 			return nil, nil
 		}
 		return nil, err
@@ -100,8 +100,9 @@ func (c *client) Exists(ref string) (bool, error) {
 	return true, nil
 }
 
-// isNotFound 判斷錯誤是否表示 repo 或 tag 不存在：404，或 quay 對不存在 repo 回的
-// 401 UNAUTHORIZED（匿名查不存在的 repo 時 quay 不回 404）。其他錯誤不算。
+// isNotFound 判斷錯誤是否表示 repo 或 tag 不存在：404，或錯誤碼 NAME_UNKNOWN、
+// MANIFEST_UNKNOWN。Exists 與 Label 只認這些，其他錯誤（含 401）照報，
+// 因為 promote 靠 Exists 拒絕覆蓋，誤判成不存在會蓋掉既有 tag。
 func isNotFound(err error) bool {
 	var te *transport.Error
 	if !errors.As(err, &te) {
@@ -110,7 +111,19 @@ func isNotFound(err error) bool {
 	if te.StatusCode == http.StatusNotFound {
 		return true
 	}
-	if te.StatusCode != http.StatusUnauthorized {
+	for _, d := range te.Errors {
+		if d.Code == transport.NameUnknownErrorCode || d.Code == transport.ManifestUnknownErrorCode {
+			return true
+		}
+	}
+	return false
+}
+
+// isUnauthorizedNotFound 判斷 quay 對不存在 repo 回的 401 UNAUTHORIZED
+// （匿名查不存在的 repo 時 quay 不回 404）。只有 ListTags 可以放寬到這一步。
+func isUnauthorizedNotFound(err error) bool {
+	var te *transport.Error
+	if !errors.As(err, &te) || te.StatusCode != http.StatusUnauthorized {
 		return false
 	}
 	for _, d := range te.Errors {

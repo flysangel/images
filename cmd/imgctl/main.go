@@ -18,10 +18,10 @@ import (
 var commands = map[string]func(args []string) int{
 	"lint":    runLint,
 	"plan":    runPlan,
-	"build":   nil,
-	"test":    nil,
-	"version": nil,
-	"promote": nil,
+	"build":   runBuild,
+	"test":    runTest,
+	"version": runVersion,
+	"promote": runPromote,
 }
 
 func main() { os.Exit(run(os.Args[1:])) }

@@ -33,6 +33,7 @@ type Item struct {
 	Reason    string            `json:"reason"`
 	BuildArgs map[string]string `json:"build_args"`
 	Upstream  map[string]string `json:"upstream"` // ARG 名 → ref@digest
+	Parents   []string          `json:"parents"`  // 本地上層，`family/service`；build 要為每個上層供給 *_IMAGE
 }
 
 // Make 算出整張圖的計畫。
@@ -91,6 +92,9 @@ func makeItem(cat *catalog.Catalog, g *graph.Graph, rc registry.Client, n graph.
 	sort.Strings(existing)
 
 	it := Item{Family: n.Family, Service: n.Service, Class: svc.Class, InputHash: in, BuildArgs: args, Upstream: up}
+	for _, p := range local {
+		it.Parents = append(it.Parents, p.Family+"/"+p.Service)
+	}
 	// 上層重建會換新 tag，子層即使 label 吻合也必須跟著重建。
 	parentRebuilt := anyRebuilt(local, rebuilt)
 	for _, t := range existing {

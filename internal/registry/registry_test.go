@@ -99,3 +99,21 @@ func TestListTags401(t *testing.T) {
 		t.Error("500 應回錯誤")
 	}
 }
+
+// promote 靠 Exists 拒絕覆蓋：401 UNAUTHORIZED 不能當成「不存在」，否則會誤蓋既有 tag。
+func TestExistsErrorsOn401(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v2/" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Fprint(w, `{"errors":[{"code":"UNAUTHORIZED","message":"x"}]}`)
+	}))
+	defer srv.Close()
+	host := strings.TrimPrefix(srv.URL, "http://")
+	c := New(remote.WithTransport(srv.Client().Transport), remote.WithRetryBackoff(remote.Backoff{Duration: time.Millisecond, Factor: 1, Steps: 1}))
+	if ok, err := c.Exists(host + "/a/b:t"); err == nil || ok {
+		t.Errorf("401 應回錯誤而不是 false：%v, %v", ok, err)
+	}
+}
