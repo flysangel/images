@@ -60,3 +60,18 @@ func TestCopyKeepsDigest(t *testing.T) {
 		t.Errorf("digest = %s, %v；want %s", got, err, d)
 	}
 }
+
+// 部分成功後重跑：目的 tag 已存在且 digest 與來源相同，視為成功。
+func TestSkipWhenSameDigest(t *testing.T) {
+	host, rc := setup(t)
+	img := push(t, host+"/stg/alpine:sshd-abc")
+	d, _ := img.Digest()
+	from := host + "/stg/alpine@" + d.String()
+	to := host + "/prod/alpine:sshd-1.0"
+	if err := Promote(rc, from, to); err != nil {
+		t.Fatal(err)
+	}
+	if err := Promote(rc, from, to); err != nil {
+		t.Fatalf("同 digest 重跑應成功：%v", err)
+	}
+}

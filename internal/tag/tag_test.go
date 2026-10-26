@@ -24,6 +24,7 @@ func TestParseVersionOutput(t *testing.T) {
 		{"apk", "  openssh-server-9.9_p1-r3\n", "9.9_p1", false},
 		{"dpkg", "1:9.6p1-3ubuntu13", "9.6p1", false},
 		{"dpkg", "2.4+dfsg~1-2", "2.4+dfsg~1", false},
+		{"dpkg", "1.0-beta-2", "1.0-beta", false},
 		{"command", "Task version: v3.54.0 (h1:abc)", "3.54.0", false},
 		{"command", "no version here", "", true},
 		{"apk", "", "", true},

@@ -149,6 +149,13 @@ families_check() {
   }
 }
 
+# 已遷移到 imgctl 的 family（infra/<family>/.imgctl 標記）由 imgctl 與 CI 處理，
+# 舊的 *-all 迴圈要略過，否則 img.sh 會對它們走舊流程。回 0 表示已遷移，呼叫端 continue。
+family_migrated() {
+  [[ -f "${infra_root}/${1}/.imgctl" ]] || return 1
+  echo "Info: ${1} 已遷移到 imgctl，略過"
+}
+
 # family 存在性守衛。build_family／dev_family／test_family 直接進
 # family_services_in_chain() 的 process substitution 迴圈,conf_get 在 subshell 裡
 # source 失敗的 rc 被丟棄,零次迭代後照走成功路徑——打錯 family 名會拿到 rc=0 的假成功。
@@ -626,6 +633,7 @@ case "${cmd}" in
   build-all)
     families_check || exit 1
     for f in "${FAMILIES_DEFAULT[@]}"; do
+      family_migrated "${f}" && continue
       echo "Info: build family ${f}"
       build_family "${f}" || exit 1
     done
@@ -642,6 +650,7 @@ case "${cmd}" in
   test-all)
     families_check || exit 1
     for f in "${FAMILIES_DEFAULT[@]}"; do
+      family_migrated "${f}" && continue
       # matrix 家族沒 testfile,跳過
       family_is_matrix "${f}" && continue
       # FD 3 餵 chain,避免內層 testfile 的 ssh/sshpass 吃 stdin
@@ -665,6 +674,7 @@ case "${cmd}" in
   ci-all)
     families_check || exit 1
     for f in "${FAMILIES_DEFAULT[@]}"; do
+      family_migrated "${f}" && continue
       echo "Info: ci family ${f}"
       ci_family "${f}" || exit 1
     done

@@ -3,19 +3,32 @@ package promote
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/flysangel/images/internal/registry"
 )
 
 // Promote 把 from（ref@digest）複製成 to，digest 保持不變。
-// to 已存在就拒絕覆蓋；複製後兩邊 digest 不同也回錯。
+// to 已存在：digest 與來源相同就略過並視為成功（部分成功後重跑），不同就拒絕覆蓋；複製後兩邊 digest 不同也回錯。
 func Promote(rc registry.Client, from, to string) error {
 	exists, err := rc.Exists(to)
 	if err != nil {
 		return fmt.Errorf("檢查 %s 是否存在失敗：%w", to, err)
 	}
 	if exists {
+		src, err := rc.Digest(from)
+		if err != nil {
+			return err
+		}
+		dst, err := rc.Digest(to)
+		if err != nil {
+			return err
+		}
+		if src == dst {
+			fmt.Fprintf(os.Stderr, "Info: %s 已存在且 digest 相同，略過\n", tagOf(to))
+			return nil
+		}
 		return fmt.Errorf("%s 已存在，拒絕覆蓋", tagOf(to))
 	}
 	if err := rc.Copy(from, to); err != nil {

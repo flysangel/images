@@ -13,6 +13,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 )
 
 func TestRegistry(t *testing.T) {
@@ -115,5 +116,31 @@ func TestExistsErrorsOn401(t *testing.T) {
 	c := New(remote.WithTransport(srv.Client().Transport), remote.WithRetryBackoff(remote.Backoff{Duration: time.Millisecond, Factor: 1, Steps: 1}))
 	if ok, err := c.Exists(host + "/a/b:t"); err == nil || ok {
 		t.Errorf("401 應回錯誤而不是 false：%v, %v", ok, err)
+	}
+}
+
+// 直接餵 *transport.Error，鎖住嚴格版 isNotFound 與 ListTags 寬鬆版的邊界。
+func TestNotFoundClassification(t *testing.T) {
+	mk := func(status int, code transport.ErrorCode) error {
+		return &transport.Error{StatusCode: status, Errors: []transport.Diagnostic{{Code: code}}}
+	}
+	cases := []struct {
+		name            string
+		err             error
+		strict, lenient bool
+	}{
+		{"401 UNAUTHORIZED", mk(http.StatusUnauthorized, transport.UnauthorizedErrorCode), false, true},
+		{"404 NAME_UNKNOWN", mk(http.StatusNotFound, transport.NameUnknownErrorCode), true, true},
+		{"404 MANIFEST_UNKNOWN", mk(http.StatusNotFound, transport.ManifestUnknownErrorCode), true, true},
+		{"500", mk(http.StatusInternalServerError, transport.UnsupportedErrorCode), false, false},
+		{"非 transport 錯誤", fmt.Errorf("x"), false, false},
+	}
+	for _, c := range cases {
+		if got := isNotFound(c.err); got != c.strict {
+			t.Errorf("%s：isNotFound = %v，要 %v", c.name, got, c.strict)
+		}
+		if got := isNotFound(c.err) || isUnauthorizedNotFound(c.err); got != c.lenient {
+			t.Errorf("%s：寬鬆版 = %v，要 %v", c.name, got, c.lenient)
+		}
 	}
 }

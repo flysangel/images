@@ -38,6 +38,13 @@ func setup(t *testing.T, files map[string]string) string {
 	if err := os.WriteFile(filepath.Join(dir, ".imgctl"), nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
+	cfg := filepath.Join(root, "config")
+	if err := os.MkdirAll(cfg, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cfg, "versions.conf"), []byte("# 註解\nPROVISION_REF=v2.0.0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	for name, body := range files {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
 			t.Fatal(err)
@@ -144,4 +151,25 @@ func TestRule6MarkerWithoutCatalogFamily(t *testing.T) {
 		t.Fatal(err)
 	}
 	expect(t, Run(testCatalog(), root), "infra/typo/.imgctl", 0, "typo")
+}
+
+func TestProvisionRefMismatch(t *testing.T) {
+	root := setup(t, map[string]string{"base.Dockerfile": goodBase, "sshd.Dockerfile": goodSshd})
+	conf := filepath.Join(root, "config", "versions.conf")
+	if err := os.WriteFile(conf, []byte("PROVISION_REF=v2.1.0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fs := Run(testCatalog(), root)
+	expect(t, fs, "config/versions.conf", 0, "v2.1.0")
+	if !strings.Contains(fs[0].Msg, "v2.0.0") {
+		t.Errorf("訊息要點名 catalog 的值：%s", fs[0].Msg)
+	}
+}
+
+func TestProvisionRefMissingFile(t *testing.T) {
+	root := setup(t, map[string]string{"base.Dockerfile": goodBase, "sshd.Dockerfile": goodSshd})
+	if err := os.Remove(filepath.Join(root, "config", "versions.conf")); err != nil {
+		t.Fatal(err)
+	}
+	expect(t, Run(testCatalog(), root), "config/versions.conf", 0, "讀不到")
 }

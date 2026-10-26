@@ -40,7 +40,7 @@ func ParseVersionOutput(kind, out string) (string, error) {
 		if i := strings.Index(s, ":"); i >= 0 && isDigits(s[:i]) {
 			s = s[i+1:]
 		}
-		if i := strings.Index(s, "-"); i >= 0 {
+		if i := strings.LastIndex(s, "-"); i >= 0 {
 			s = s[:i]
 		}
 		if s == "" {

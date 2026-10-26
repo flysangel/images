@@ -59,7 +59,32 @@ func Run(cat *catalog.Catalog, repoRoot string) []Finding {
 			out = append(out, Finding{r, 0, fmt.Sprintf("infra/%s 有 .imgctl 標記，但 catalog 沒有 family %s", fam, fam)})
 		}
 	}
+	out = append(out, lintProvisionRef(cat, repoRoot)...)
 	return out
+}
+
+// lintProvisionRef 檢查 catalog 的 provision_ref 與 config/versions.conf 的 PROVISION_REF 同值。
+// 過渡期兩處各有一份（舊 img.sh 讀後者，imgctl 讀前者），不同值會讓兩邊建出不同版本。
+func lintProvisionRef(cat *catalog.Catalog, repoRoot string) []Finding {
+	const file = "config/versions.conf"
+	b, err := os.ReadFile(filepath.Join(repoRoot, file))
+	if err != nil {
+		return []Finding{{file, 0, fmt.Sprintf("讀不到 %s：%v", file, err)}}
+	}
+	conf := ""
+	found := false
+	for _, line := range strings.Split(string(b), "\n") {
+		if v, ok := strings.CutPrefix(strings.TrimSpace(line), "PROVISION_REF="); ok {
+			conf, found = v, true
+		}
+	}
+	if !found {
+		return []Finding{{file, 0, "找不到 PROVISION_REF"}}
+	}
+	if conf != cat.ProvisionRef {
+		return []Finding{{file, 0, fmt.Sprintf("PROVISION_REF 是 %s，但 catalog.yaml 的 provision_ref 是 %s，兩處要同值", conf, cat.ProvisionRef)}}
+	}
+	return nil
 }
 
 func lintFamily(cat *catalog.Catalog, fam, dir, repoRoot string, allowed map[string]bool) []Finding {
