@@ -9,10 +9,17 @@ import (
 	"github.com/flysangel/images/internal/catalog"
 )
 
-func TestAlpineBatches(t *testing.T) {
+// batchNames 載入真的 catalog，只留 keep 這個 family，回傳分批後的 service 名。
+func batchNames(t *testing.T, keep string) (*Graph, [][]string) {
+	t.Helper()
 	cat, err := catalog.Load("../../catalog.yaml")
 	if err != nil {
 		t.Fatal(err)
+	}
+	for name := range cat.Families {
+		if name != keep {
+			delete(cat.Families, name)
+		}
 	}
 	g, err := Build(cat, "../..")
 	if err != nil {
@@ -30,6 +37,27 @@ func TestAlpineBatches(t *testing.T) {
 		}
 		got = append(got, names)
 	}
+	return g, got
+}
+
+func TestUbuntuBatches(t *testing.T) {
+	g, got := batchNames(t, "ubuntu")
+	want := [][]string{{"base"}, {"sshd"}, {"knife"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Batches = %v，要 %v", got, want)
+	}
+	local, up := g.Parents(Node{"ubuntu", "knife"})
+	if len(local) != 1 || local[0].String() != "ubuntu:sshd" || len(up) != 0 {
+		t.Errorf("knife Parents = %v、%v", local, up)
+	}
+	_, up = g.Parents(Node{"ubuntu", "base"})
+	if len(up) != 1 || up[0] != "LIBRARY_UBUNTU" {
+		t.Errorf("base 上游 = %v", up)
+	}
+}
+
+func TestAlpineBatches(t *testing.T) {
+	g, got := batchNames(t, "alpine")
 	want := [][]string{{"base"}, {"runner", "sshd"}, {"podman", "qemu", "s3cli"}, {"k8stools"}, {"k8sadm"}}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Batches = %v，要 %v", got, want)
@@ -37,6 +65,46 @@ func TestAlpineBatches(t *testing.T) {
 	local, up := g.Parents(Node{"alpine", "s3cli"})
 	if len(local) != 1 || local[0].String() != "alpine:sshd" || len(up) != 1 || up[0] != "MINIO_MC" {
 		t.Errorf("s3cli Parents = %v、%v", local, up)
+	}
+}
+
+// 兩個 family 同載時：同名 service 不互相串線，批內同名時 family 字母序在前。
+func TestAlpineUbuntuTogether(t *testing.T) {
+	cat, err := catalog.Load("../../catalog.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := Build(cat, "../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	batches, err := g.Batches()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var first []Node
+	for _, b := range batches {
+		hasA, hasU := false, false
+		for _, n := range b {
+			hasA = hasA || n == Node{"alpine", "base"}
+			hasU = hasU || n == Node{"ubuntu", "base"}
+		}
+		if hasA && hasU {
+			first = b
+			break
+		}
+	}
+	if len(first) < 2 || first[0] != (Node{"alpine", "base"}) || first[1] != (Node{"ubuntu", "base"}) {
+		t.Errorf("同批應為 alpine:base 在 ubuntu:base 前：%v", first)
+	}
+	for _, c := range []struct{ node, want Node }{
+		{Node{"ubuntu", "sshd"}, Node{"ubuntu", "base"}},
+		{Node{"alpine", "sshd"}, Node{"alpine", "base"}},
+	} {
+		local, _ := g.Parents(c.node)
+		if len(local) != 1 || local[0] != c.want {
+			t.Errorf("%s Parents = %v，要只有 %s", c.node, local, c.want)
+		}
 	}
 }
 

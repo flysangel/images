@@ -4,11 +4,15 @@ upstream:
   LIBRARY_ALPINE:
     ref: quay.io/flysangel/library/alpine:3.21.3
     digest: sha256:1c4eef651f65e2f7daee7ee785882ac164b02b78fb74503052a26dc061c90474
+  LIBRARY_UBUNTU:
+    ref: quay.io/flysangel/library/ubuntu:24.04
+    digest: sha256:a2d43bffc46670d7108bb3c0468c67c5557c4c92e83e1e34cbff1322ad1b94dc
   MINIO_MC:
     ref: quay.io/flysangel/minio/mc:latest
     digest: sha256:eb4ea9884b77704230e2423e9004d2fa738dc272876b9cc41a297d29443b8780
 families:
   alpine:
+    distro: alpine
     values:
       BASE: "3.21.3"
       SEAWEEDFS_URL: https://github.com/seaweedfs/seaweedfs/releases/download/4.36/linux_amd64.tar.gz
@@ -24,3 +28,13 @@ families:
       k8stools: { class: C }
       k8sadm:   { class: C }
       runner:   { class: B, version_from: { command: "task --version" } }
+  ubuntu:
+    distro: ubuntu
+    values:
+      BASE: "24.04"
+    aliases:
+      PROVISION_REF_IN: PROVISION_REF
+    services:
+      base:  { class: A, version: "24.04" }
+      sshd:  { class: B, version_from: { package: openssh-server } }
+      knife: { class: B, version_from: { package: kubectl } }

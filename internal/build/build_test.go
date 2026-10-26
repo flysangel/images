@@ -83,6 +83,9 @@ func TestProbeCommand(t *testing.T) {
 	if err != nil || kind != "command" || argv[len(argv)-1] != "task --version" {
 		t.Errorf("command：%s %v %v", kind, argv, err)
 	}
+	if _, _, err = ProbeCommand("debian", &catalog.VersionFrom{Package: "git"}, "img"); err == nil {
+		t.Error("未知 distro 應回錯")
+	}
 	if _, _, err = ProbeCommand("alpine", nil, "img"); err == nil {
 		t.Error("沒有 version_from 應回錯")
 	}

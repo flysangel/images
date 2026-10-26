@@ -5,7 +5,7 @@
 - 標準驗證路徑：`task doctor` → `task lint` → `task test`，定義見 `AGENTS.md`〈完成定義〉。
 - L1、L2 是綠的。`check-taskfile.py` 已實際檢查 Taskfile，不再略過。
 - L3 未驗證：bigdata、landlord、rdp 等 family 還沒實建過，清單見〈待辦〉以「分批跑 `task ci:image`」開頭的那條。
-- alpine 已改由 `imgctl` 與 GitHub Actions 建置，其他 family 仍用 `img.sh`。過渡期的限制見 `AGENTS.md`〈alpine 已改由 imgctl 建置〉。
+- 已遷移的 family（看 `infra/*/.imgctl`）改由 `imgctl` 與 GitHub Actions 建置，其他 family 仍用 `img.sh`。過渡期的限制見 `AGENTS.md`〈已遷移的 family 改由 imgctl 建置〉。
 - blocker：registry 上 `bigdata` 到 `landlord` 的映像鏈建不起來，見 `AGENTS.md`〈registry 上的映像鏈可能建不起來〉。
 
 ## 2. 待辦

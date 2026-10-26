@@ -1,8 +1,8 @@
 # ubuntu base 樣板:apt-get 裝 ca-certificates/curl,跑 provision 的 base/ntp/locale 設定
+# 上游映像由 FROM ${LIBRARY_UBUNTU_IMAGE} 供給（catalog.yaml 的 digest），不再注入 BASE
 
-ARG REGISTRY_PREFIX
-ARG BASE
-FROM ${REGISTRY_PREFIX}/library/ubuntu:${BASE}
+ARG LIBRARY_UBUNTU_IMAGE
+FROM ${LIBRARY_UBUNTU_IMAGE}
 # 釘版穿透:provision 二跳腳本繼承此 ENV(不落回 main)
 ARG PROVISION_REF_IN
 ENV PROVISION_REF=${PROVISION_REF_IN}

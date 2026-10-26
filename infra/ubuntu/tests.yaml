@@ -1,0 +1,8 @@
+# ubuntu family 的煙霧測試規格，由 `imgctl test` 讀取。
+# defaults 套給每個 service；service 有寫的欄位蓋過 defaults，寫 null 表示關掉。
+# ssh、wait_port 為 null 的 service 沒有 sshd，改用 docker exec 驗。
+defaults: { privileged: true, ssh: { user: bigred, password: bigred }, wait_port: 22 }
+services:
+  base:  { ssh: null, wait_port: null, commands: [sudo, bash, sshpass, jq, nano, tree, wget, curl, git, shellcheck, 7z, dig, ncat, tini], timezone: Asia/Taipei }
+  sshd:  {}
+  knife: { commands: [arping, iperf3, tcpdump, traceroute, fio, ioping, kubectl] }

@@ -27,8 +27,10 @@ type Upstream struct {
 	Digest string `yaml:"digest"`
 }
 
-// Family 的 Aliases 把 Dockerfile 的 ARG 名對應到 catalog 鍵。
+// Family 的 Distro 是 "alpine" 或 "ubuntu"，決定探測套件版本用 apk 還是 dpkg。
+// Aliases 把 Dockerfile 的 ARG 名對應到 catalog 鍵。
 type Family struct {
+	Distro   string             `yaml:"distro"`
 	Values   map[string]string  `yaml:"values"`
 	Aliases  map[string]string  `yaml:"aliases"`
 	Services map[string]Service `yaml:"services"`
@@ -136,6 +138,9 @@ func (c *Catalog) validate() error {
 		}
 	}
 	for _, fam := range sortedKeys(c.Families) {
+		if d := c.Families[fam].Distro; d != "alpine" && d != "ubuntu" {
+			add("families.%s.distro：要是 alpine 或 ubuntu，現為 %q", fam, d)
+		}
 		for _, svc := range sortedKeys(c.Families[fam].Services) {
 			s := c.Families[fam].Services[svc]
 			p := fmt.Sprintf("families.%s.services.%s", fam, svc)

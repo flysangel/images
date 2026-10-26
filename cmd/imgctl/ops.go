@@ -287,7 +287,7 @@ func runVersion(args []string) int {
 	if err != nil {
 		return fail("%v", err)
 	}
-	kind, argv, err := build.ProbeCommand(fam, cat.Families[fam].Services[svc].VersionFrom, image)
+	kind, argv, err := build.ProbeCommand(cat.Families[fam].Distro, cat.Families[fam].Services[svc].VersionFrom, image)
 	if err != nil {
 		return fail("%v", err)
 	}
