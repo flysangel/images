@@ -1,4 +1,4 @@
-// Package build 組出 buildx 與版本探測的指令，並解析上層映像的 digest。
+// Package build 組出 podman build／push 與版本探測的指令，並解析上層映像的 digest。
 // 指令只組不跑，執行由 cmd/imgctl 負責，所以不需要 docker 就能測。
 package build
 
@@ -20,7 +20,8 @@ func StagingTag(item plan.Item, sha string) string {
 	return item.Service + "-" + sha
 }
 
-// Command 組出 docker buildx build 指令。
+// Command 組出 podman build 指令（純函式，不推送；推送見 PushCommand）。
+// 一定帶 --format docker：podman 預設的 OCI 格式會忽略 SHELL，pipefail 會失效。
 // parents 的鍵是 *_IMAGE ARG 名，值是 ref@digest；Item.Parents 列的每個上層都必須有。
 func Command(item plan.Item, parents map[string]string, stagingRepo, sha string) ([]string, error) {
 	args := map[string]string{}
@@ -49,7 +50,7 @@ func Command(item plan.Item, parents map[string]string, stagingRepo, sha string)
 	sort.Strings(keys)
 
 	cmd := []string{
-		"docker", "buildx", "build", "--push", "--provenance=false",
+		"podman", "build", "--format", "docker",
 		"--label", plan.HashLabel + "=" + item.InputHash,
 		"-t", stagingRepo + "/" + item.Family + ":" + StagingTag(item, sha),
 		"-f", "infra/" + item.Family + "/" + item.Service + ".Dockerfile",
@@ -58,6 +59,11 @@ func Command(item plan.Item, parents map[string]string, stagingRepo, sha string)
 		cmd = append(cmd, "--build-arg", k+"="+args[k])
 	}
 	return append(cmd, "infra/"+item.Family), nil
+}
+
+// PushCommand 組出 podman push 指令，digest 寫進 digestFile。
+func PushCommand(ref, digestFile string) []string {
+	return []string{"podman", "push", "--digestfile", digestFile, ref}
 }
 
 // ResolveParents 為 item 的每個本地上層找出 ref@digest。

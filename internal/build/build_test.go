@@ -33,7 +33,7 @@ func TestCommand(t *testing.T) {
 	}
 	line := strings.Join(got, " ")
 	for _, want := range []string{
-		"docker buildx build --push --provenance=false",
+		"podman build --format docker --label org.flysangel.input-hash=h123",
 		"--build-arg ALPINE_BASE_IMAGE=" + parent,
 		"--build-arg PROVISION_REF_IN=v2.0.0",
 		"--build-arg LIBRARY_ALPINE_IMAGE=quay.io/x/library/alpine@sha256:aa",
@@ -45,8 +45,21 @@ func TestCommand(t *testing.T) {
 			t.Errorf("缺 %q\n%s", want, line)
 		}
 	}
+	// --format docker 必要：OCI 格式會忽略 SHELL，pipefail 失效。
+	if !slices.Contains(got, "--format") || strings.Contains(line, "buildx") ||
+		strings.Contains(line, "--push") || strings.Contains(line, "--provenance") {
+		t.Errorf("應為 podman build --format docker，不含 buildx/--push/--provenance：%s", line)
+	}
 	if got[len(got)-1] != "infra/alpine" {
 		t.Errorf("最後一個參數應為 context：%v", got)
+	}
+}
+
+func TestPushCommand(t *testing.T) {
+	got := PushCommand("ghcr.io/x/alpine:sshd-abc", "/tmp/d")
+	want := []string{"podman", "push", "--digestfile", "/tmp/d", "ghcr.io/x/alpine:sshd-abc"}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %v, want %v", got, want)
 	}
 }
 

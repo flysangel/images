@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -21,8 +22,10 @@ import (
 	"github.com/flysangel/images/internal/tag"
 )
 
-// 這幾個子命令跑在 GitHub Actions 上（有 docker、buildx）；邏輯在 internal/ 的純函式，
+// 這幾個子命令跑在 GitHub Actions 上（有 podman、docker）；邏輯在 internal/ 的純函式，
 // 這裡只負責讀旗標、呼叫外部指令、印訊息。
+
+var digestRe = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 
 func fail(format string, a ...any) int {
 	fmt.Fprintf(os.Stderr, "Error: "+format+"\n", a...)
@@ -123,12 +126,28 @@ func runBuild(args []string) int {
 	}
 	fmt.Fprintf(os.Stderr, "Info: %s\n", strings.Join(argv, " "))
 	if err := runCmd(argv); err != nil {
-		return fail("buildx 失敗：%v", err)
+		return fail("podman build 失敗：%v", err)
 	}
 	ref := push + "/" + fam + ":" + build.StagingTag(item, sha)
-	digest, err := rc.Digest(ref)
+	df, err := os.CreateTemp("", "imgctl-digest-*")
 	if err != nil {
-		return fail("查 %s 的 digest 失敗：%v", ref, err)
+		return fail("%v", err)
+	}
+	digestFile := df.Name()
+	df.Close()
+	defer os.Remove(digestFile)
+	pushArgv := build.PushCommand(ref, digestFile)
+	fmt.Fprintf(os.Stderr, "Info: %s\n", strings.Join(pushArgv, " "))
+	if err := runCmd(pushArgv); err != nil {
+		return fail("podman push 失敗：%v", err)
+	}
+	db, err := os.ReadFile(digestFile)
+	if err != nil {
+		return fail("讀 digest 檔失敗：%v", err)
+	}
+	digest := strings.TrimSpace(string(db))
+	if !digestRe.MatchString(digest) {
+		return fail("push 回報的 digest 格式不對：%q", digest)
 	}
 	refFile := filepath.Join(out, fam+"_"+svc+".ref")
 	if err := os.WriteFile(refFile, []byte(ref+"@"+digest+"\n"), 0o644); err != nil {
