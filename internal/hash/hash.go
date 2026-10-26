@@ -38,7 +38,7 @@ func Input(cat *catalog.Catalog, g *graph.Graph, n graph.Node, overrides map[str
 	}
 	section("dockerfile", df)
 
-	args, err := cat.BuildArgs(n.Family, n.Service, declared(file.ArgDecls), overrides)
+	args, err := cat.BuildArgs(n.Family, n.Service, Declared(file.ArgDecls), overrides)
 	if err != nil {
 		return "", err
 	}
@@ -96,8 +96,8 @@ func Input(cat *catalog.Catalog, g *graph.Graph, n graph.Node, overrides map[str
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-// declared 回傳光桿 ARG 名（去重，排除 *_IMAGE）。
-func declared(decls []dockerfile.ArgDecl) []string {
+// Declared 回傳光桿 ARG 名（去重，排除 *_IMAGE）。
+func Declared(decls []dockerfile.ArgDecl) []string {
 	seen := map[string]bool{}
 	var out []string
 	for _, d := range decls {
