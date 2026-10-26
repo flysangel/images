@@ -68,6 +68,46 @@ func TestAlpineBatches(t *testing.T) {
 	}
 }
 
+// 兩個 family 同載時：同名 service 不互相串線，批內同名時 family 字母序在前。
+func TestAlpineUbuntuTogether(t *testing.T) {
+	cat, err := catalog.Load("../../catalog.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, err := Build(cat, "../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	batches, err := g.Batches()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var first []Node
+	for _, b := range batches {
+		hasA, hasU := false, false
+		for _, n := range b {
+			hasA = hasA || n == Node{"alpine", "base"}
+			hasU = hasU || n == Node{"ubuntu", "base"}
+		}
+		if hasA && hasU {
+			first = b
+			break
+		}
+	}
+	if len(first) < 2 || first[0] != (Node{"alpine", "base"}) || first[1] != (Node{"ubuntu", "base"}) {
+		t.Errorf("同批應為 alpine:base 在 ubuntu:base 前：%v", first)
+	}
+	for _, c := range []struct{ node, want Node }{
+		{Node{"ubuntu", "sshd"}, Node{"ubuntu", "base"}},
+		{Node{"alpine", "sshd"}, Node{"alpine", "base"}},
+	} {
+		local, _ := g.Parents(c.node)
+		if len(local) != 1 || local[0] != c.want {
+			t.Errorf("%s Parents = %v，要只有 %s", c.node, local, c.want)
+		}
+	}
+}
+
 func TestCycle(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, "infra", "loop")

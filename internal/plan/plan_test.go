@@ -39,7 +39,7 @@ func load(t *testing.T) (*catalog.Catalog, *graph.Graph) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// 這組測試以 alpine 的 8 個 service 為準（以 service 名為鍵，多 family 會撞名）。
+	// 這組測試以 alpine 的 8 個 service 為準。只留 alpine 是測試替身的限制：本檔的 items() 以 service 名為鍵，多 family 會撞名；正式碼以 graph.Node（family 加 service）為鍵，不受影響。
 	delete(cat.Families, "ubuntu")
 	g, err := graph.Build(cat, "../..")
 	if err != nil {
