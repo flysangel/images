@@ -458,10 +458,10 @@ rm "${err_file}"
 teardown_test
 
 # ===== Case 30: 非 repo 根 cwd 組值表(輸入側 cwd 迴歸) =====
-# 不用 fixtures:清掉 FAMILIES_ROOT 等 env 遮蔽,驗 img.sh 以絕對路徑解析 conf 與 Dockerfile；alpine 已遷到 imgctl，改用 ubuntu 的 base
+# 不用 fixtures:清掉 FAMILIES_ROOT 等 env 遮蔽,驗 img.sh 以絕對路徑解析 conf 與 Dockerfile；已遷到 imgctl 的 family 不能用，改用 rdp 的 lxqt
 setup_test
 unset FAMILIES_ROOT ROOT_VERSIONS REGISTRY_PREFIX
-out="$( (cd /tmp && bash "${img}" __dump_build_args ubuntu base) 2>&1 )"
+out="$( (cd /tmp && bash "${img}" __dump_build_args rdp lxqt) 2>&1 )"
 rc=$?
 check_exit "case 30 非 repo 根 cwd 組值表 exit 0" 0 "${rc}"
 if [[ "${out}" == *"REGISTRY_PREFIX="* && "${out}" == *"PROVISION_REF_IN="* ]]; then
@@ -557,10 +557,10 @@ echo
 
 # ===== Case 37: CLI 覆寫對別名鍵(ARG_ALIAS)生效 =====
 # 迴歸:查表若無條件走別名,CLI 對 PROVISION_REF_IN 的覆寫會被換回 PROVISION_REF 的值而失效。
-# 用真 repo(不用 fixtures):別名表綁在 img.sh,需要真的 ubuntu/knife.Dockerfile 有該光桿 ARG。
+# 用真 repo(不用 fixtures):別名表綁在 img.sh,需要真的 rdp/lxqt.Dockerfile 有該光桿 ARG。
 setup_test
 unset FAMILIES_ROOT ROOT_VERSIONS REGISTRY_PREFIX
-out="$( (cd "${repo_root}" && bash "${img}" __dump_build_args ubuntu knife PROVISION_REF_IN=v9.9.9-probe) 2>&1 )"
+out="$( (cd "${repo_root}" && bash "${img}" __dump_build_args rdp lxqt PROVISION_REF_IN=v9.9.9-probe) 2>&1 )"
 if printf '%s' "${out}" | grep -q 'PROVISION_REF_IN=v9.9.9-probe'; then
     echo "[OK] case 37 CLI 覆寫對別名鍵生效"
     pass=$((pass+1))
@@ -568,7 +568,7 @@ else
     echo "[FAIL] case 37 CLI 覆寫被別名解析吃掉: ${out}" >&2
     fail=$((fail+1))
 fi
-out="$( (cd "${repo_root}" && bash "${img}" __dump_build_args ubuntu knife) 2>&1 )"
+out="$( (cd "${repo_root}" && bash "${img}" __dump_build_args rdp lxqt) 2>&1 )"
 if printf '%s' "${out}" | grep -q 'PROVISION_REF_IN=v'; then
     echo "[OK] case 37 無覆寫時仍走別名取 config/versions.conf 的值"
     pass=$((pass+1))
@@ -610,14 +610,14 @@ teardown_test
 # 組進 raw/${PROVISION_REF}/ 的 URL 就壞掉,而 curl 的錯誤訊息看不出多了個 CR。
 # fixture 在執行期生成:.gitattributes 的 `versions.conf text eol=lf` 會把
 # committed 的 CRLF 檔正規化掉,存成檔案驗不到。
-# 用真 repo 的 ubuntu/knife(同 case 37 的理由):PROVISION_REF_IN 是 ARG_ALIAS 的鍵,
+# 用真 repo 的 rdp/lxqt(同 case 37 的理由):PROVISION_REF_IN 是 ARG_ALIAS 的鍵,
 # 需要真的有宣告該光桿 ARG 的 Dockerfile,fixture 的 taroko/node 只宣告 KUBERNETES_VERSION。
 setup_test
 unset FAMILIES_ROOT REGISTRY_PREFIX
 crlf_root="$(mktemp -d)"
 printf 'IMAGES_REF=v0.0.0\r\nPROVISION_REF=v7.7.7\r\n' > "${crlf_root}/versions.conf"
 export ROOT_VERSIONS="${crlf_root}/versions.conf"
-out="$( (cd "${repo_root}" && bash "${img}" __dump_build_args ubuntu knife) 2>&1 )"
+out="$( (cd "${repo_root}" && bash "${img}" __dump_build_args rdp lxqt) 2>&1 )"
 rc=$?
 check_exit "case 40 CRLF 的 config/versions.conf 仍組得出值表" 0 "${rc}"
 # 輸出的是 ARG 名 PROVISION_REF_IN(經 ARG_ALIAS 對回 conf 的 PROVISION_REF),不是 conf 鍵名。
