@@ -31,6 +31,8 @@ func TestLoadClassRules(t *testing.T) {
 		"B缺version_from": {`{ class: B, version_from: { package: openssh-server } }`, `{ class: B }`, "families.alpine.services.sshd.version_from"},
 		"二擇一":            {`{ package: openssh-server }`, `{ package: openssh-server, command: x }`, "families.alpine.services.sshd.version_from"},
 		"digest":         {"sha256:aaaa", "md5:aaaa", "upstream.LIBRARY_ALPINE.digest"},
+		"distro缺":        {"    distro: alpine\n", "", "families.alpine.distro"},
+		"distro非oneof":   {"distro: alpine", "distro: debian", "families.alpine.distro"},
 	}
 	raw, err := os.ReadFile("testdata/valid.yaml")
 	if err != nil {

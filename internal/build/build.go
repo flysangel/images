@@ -101,8 +101,8 @@ func ResolveParents(item plan.Item, p *plan.Plan, dir, registryPrefix string, rc
 }
 
 // ProbeCommand 組出查軟體版本的指令。回傳 tag.ParseVersionOutput 要用的 kind。
-// 有 Command 用 command；否則 ubuntu 用 dpkg，其餘（alpine）用 apk。
-func ProbeCommand(family string, vf *catalog.VersionFrom, image string) (string, []string, error) {
+// 有 Command 用 command；否則依 family 的 distro：ubuntu 用 dpkg，alpine 用 apk，其餘回錯。
+func ProbeCommand(distro string, vf *catalog.VersionFrom, image string) (string, []string, error) {
 	if vf == nil {
 		return "", nil, fmt.Errorf("service 沒有 version_from，無法探測版本")
 	}
@@ -112,10 +112,12 @@ func ProbeCommand(family string, vf *catalog.VersionFrom, image string) (string,
 		return "command", append(base, "sh", "-c", vf.Command), nil
 	case vf.Package == "":
 		return "", nil, fmt.Errorf("version_from 要設 package 或 command")
-	case family == "ubuntu":
+	case distro == "ubuntu":
 		return "dpkg", append(base, "dpkg-query", "-W", "-f=${Version}", vf.Package), nil
+	case distro == "alpine":
+		return "apk", append(base, "apk", "info", "-e", "-v", vf.Package), nil
 	}
-	return "apk", append(base, "apk", "info", "-e", "-v", vf.Package), nil
+	return "", nil, fmt.Errorf("不支援的 distro %q", distro)
 }
 
 func findItem(p *plan.Plan, family, service string) (plan.Item, bool) {

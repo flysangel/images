@@ -9,10 +9,17 @@ import (
 	"github.com/flysangel/images/internal/catalog"
 )
 
-func TestAlpineBatches(t *testing.T) {
+// batchNames 載入真的 catalog，只留 keep 這個 family，回傳分批後的 service 名。
+func batchNames(t *testing.T, keep string) (*Graph, [][]string) {
+	t.Helper()
 	cat, err := catalog.Load("../../catalog.yaml")
 	if err != nil {
 		t.Fatal(err)
+	}
+	for name := range cat.Families {
+		if name != keep {
+			delete(cat.Families, name)
+		}
 	}
 	g, err := Build(cat, "../..")
 	if err != nil {
@@ -30,6 +37,27 @@ func TestAlpineBatches(t *testing.T) {
 		}
 		got = append(got, names)
 	}
+	return g, got
+}
+
+func TestUbuntuBatches(t *testing.T) {
+	g, got := batchNames(t, "ubuntu")
+	want := [][]string{{"base"}, {"sshd"}, {"knife"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Batches = %v，要 %v", got, want)
+	}
+	local, up := g.Parents(Node{"ubuntu", "knife"})
+	if len(local) != 1 || local[0].String() != "ubuntu:sshd" || len(up) != 0 {
+		t.Errorf("knife Parents = %v、%v", local, up)
+	}
+	_, up = g.Parents(Node{"ubuntu", "base"})
+	if len(up) != 1 || up[0] != "LIBRARY_UBUNTU" {
+		t.Errorf("base 上游 = %v", up)
+	}
+}
+
+func TestAlpineBatches(t *testing.T) {
+	g, got := batchNames(t, "alpine")
 	want := [][]string{{"base"}, {"runner", "sshd"}, {"podman", "qemu", "s3cli"}, {"k8stools"}, {"k8sadm"}}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Batches = %v，要 %v", got, want)

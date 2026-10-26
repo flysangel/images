@@ -6,6 +6,7 @@ upstream:
     digest: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 families:
   alpine:
+    distro: alpine
     values:
       BASE: "3.21.3"
     aliases:
