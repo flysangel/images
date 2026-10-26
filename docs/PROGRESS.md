@@ -12,20 +12,20 @@
 
 有觸發條件的，句尾括號寫什麼時候做。
 
-- 寫「遷移其餘 family 到 `imgctl`」的計畫：依依賴序遷 fbs、gmm、open-webui、taroko、ubuntu、rdp、bigdata、landlord。全部遷完後刪 `img.sh`、各 family 的 `versions.conf`、`config/versions.conf` 與 `.imgctl` 標記，manifest 改由 `imgctl` 產生
+- 寫「遷移其餘 family 到 `imgctl`」的計畫：依依賴序遷 gmm、taroko、rdp、bigdata、landlord。全部遷完後刪 `img.sh`、各 family 的 `versions.conf`、`config/versions.conf` 與 `.imgctl` 標記，manifest 改由 `imgctl` 產生
 - 把 GitHub Actions run 40312324353 step summary 的 `/dev/kvm` 結果與各顆 `df -h` 抄進 `docs/ARCHITECTURE.md`〈已知的結構性限制〉。重型 family（bigdata、rdp、taroko）用免費 runner 還是自架，要靠這兩個值決定
 - alpine 的輸入雜湊收整個 `infra/alpine/`，改 README 或 `*.testfile` 也會讓 alpine 全部重新發 tag。在 `imgctl` 加排除清單，只收 build context 會用到的檔
 - `infra/alpine/README.md` 開頭的結構樹與「值由 `img.sh` 供給」的敘述過時；`AGENTS.md`〈改了哪類檔要多驗什麼〉的 `config/versions.conf` 列仍寫「沒有程式驗」，現在 `imgctl lint` 會比對 `PROVISION_REF`
 - `tests/test_img.sh` 的 `*-all` 略過已遷移 family 那個 case，只斷言被略過的 family，沒斷言其他 family 照跑
 - `infra/alpine/tests.yaml` 的 podman 顆加真實檢查（例如 `podman info`），現在只驗指令存在。改 `tests.yaml` 會讓 alpine 全部重新發 tag，等下一次 alpine 本來就要升版時一起做
 - 用當前釘的 provision 重建 registry 上的映像並發新版：步驟見 README〈升 PROVISION_REF〉。taroko 的 tag 不帶版號，重建會覆蓋 registry 上的既有 tag，動手前先決定做法。這也會修好 `landlord:tenant-hadoop` 對著 registry 建不起來的時間錯位
-- 有 FROM 沒寫 tag、隱含 `latest`：`library/mariadb` 與 `minio/mc`，查法 `grep -n 'FROM .*\(mariadb\|minio/mc\)' infra/*/*.Dockerfile`。同步 CronJob 每晚把上游新版鏡進來，下次建置 base 就靜默換掉。在各 family 的 `versions.conf` 加頂層鍵（例如 `MARIADB_TAG`、`MC_TAG`）並在 FROM 使用。`minio/mc` 的同步規則目前只鏡 `latest`，要先改規則、同步一次才釘得了。等於換 base，整個 family 要升版並重建。同性質的還有 `infra/fbs/base.Dockerfile`：filebrowser 由上游 `get.sh` 的 `master` 分支裝最新版，沒釘版本或 checksum，改成釘 release URL 加 sha256，比照 alpine 的 `SEAWEEDFS_URL`
+- 有 FROM 沒寫 tag、隱含 `latest`：`library/mariadb` 與 `minio/mc`，查法 `grep -n 'FROM .*\(mariadb\|minio/mc\)' infra/*/*.Dockerfile`。同步 CronJob 每晚把上游新版鏡進來，下次建置 base 就靜默換掉。在各 family 的 `versions.conf` 加頂層鍵（例如 `MARIADB_TAG`、`MC_TAG`）並在 FROM 使用。`minio/mc` 的同步規則目前只鏡 `latest`，要先改規則、同步一次才釘得了。等於換 base，整個 family 要升版並重建。同性質的還有 `infra/fbs/base.Dockerfile`：filebrowser 由上游 `get.sh` 的 `master` 分支裝最新版，沒釘版本或 checksum，改成釘 release URL 加 sha256，值放 `catalog.yaml` 的 fbs `values`，比照 alpine 的 `SEAWEEDFS_URL`
 - `sync/kustomization.yaml` 的 `newTag` 與 `infra/alpine/versions.conf` 的 `SERVICE_VERSION` 是同值兩處，alpine 升版要同步改，沒有人執法（過渡期 alpine 的版本值在 `catalog.yaml`，`versions.conf` 已凍結）。漏改時 CronJob 靜默跑在舊映像上。在 `tests/test_cronjob.sh` 加一條斷言比對兩者
 - `sync/secret/secret.env` 的「值一律裸寫」沒有人執法：加了引號，引號會一起進 Secret，叢集端每晚登入失敗才顯現。在 `tests/test_cronjob.sh` 加一條斷言：產物 Secret 的值解碼後不得以引號開頭
 - `bin/sync-lint.py` 用 Python 的 `re` 驗 tag regex，但 skopeo 用 Go 的 RE2。RE2 不支援 lookahead、lookbehind、反向引用，所以 Python 編得過不代表 skopeo 編得過，這條檢查有系統性的假陰性
 - `tests/test_img.sh` 開頭自檢 `tests/fixtures/stubs/` 的執行位元，沒有就退場。做完刪 `AGENTS.md`〈直接跑 `test_img.sh` 前先確認 stub 有執行位元〉講 stub 的那段
 - `tests/test_img.sh` 補 `build_args()` 缺鍵分支的 case：Dockerfile 宣告了光桿 `ARG`、值表沒有這個鍵時要失敗。`docs/ARCHITECTURE.md`〈設計取捨〉把這條列為 `img.sh` 擋下的約束，現在沒有測試釘住
-- 分批跑 `task ci:image -- <family>` 補驗還沒實建過的 family：bigdata、landlord、rdp，以及 `fbs/base`、`open-webui/dbadm`、`gmm/mariadb`、taroko 的 `server`、`docker` 與 `node` 的第二個 stage。taroko 改跑 `bash infra/bin/img.sh ci taroko`。`lint:family` 只驗宣告與值表對得上，驗不到值進建置後的行為。先做第一條，或 bigdata 改用 `task build:image` 保留本機映像，不然 landlord 會撞 `AGENTS.md`〈registry 上的映像鏈可能建不起來〉
+- 分批跑 `task ci:image -- <family>` 補驗還沒實建過的 family：bigdata、landlord、rdp，以及 `gmm/mariadb`、taroko 的 `server`、`docker` 與 `node` 的第二個 stage。taroko 改跑 `bash infra/bin/img.sh ci taroko`。`lint:family` 只驗宣告與值表對得上，驗不到值進建置後的行為。先做第一條，或 bigdata 改用 `task build:image` 保留本機映像，不然 landlord 會撞 `AGENTS.md`〈registry 上的映像鏈可能建不起來〉
 - testfile 只驗檔案存在、不驗權限：`bigdata/dtc-ha` 與 landlord 的 testfile 用 `ls` 加 `grep -q` 判定，`alpine/k8sadm` 與 rdp 的 `*-k8sadm` 只 `test -f`，誤植 `--chmod` 或漏 `--chown` 都抓不到。判定改用 `stat -c '%a %U'`
 - `COPY` 的寫法不一致：`--chmod` 三位數與四位數並存（查法 `grep -h '^COPY' infra/*/*.Dockerfile | grep -oE -- '--chmod=[0-9]+' | sort | uniq -c`），與 `--chown` 併用時兩種順序都有。統一成四位數、固定順序，零行為變動
 - `bin/family-lint.py` 加規則：每個 `COPY` 必帶 `--chmod`。當初刻意與 ARG 契約分開落地
@@ -37,7 +37,7 @@
 - `tenant-hadoop.testfile` 不驗 `envsubst` 與 `inotifywait`，`tenant.testfile` 有；兩者都是 `log_client` 的執行期相依，由 provision 的 `base.txt` 供給
 - `log_client` 建 token Secret 後立刻用 jsonpath 讀 `ca.crt` 與 `token`，沒有等待迴圈；token controller 慢一步就把空字串寫進 serviceaccount 路徑
 - `infra/landlord/bin/tenant/template/config.yaml` 被 COPY 進映像但 `log_client` 沒引用。刪檔，或補上用途
-- open-webui 的四支 helper 直接寫 open-webui 的 `user`、`auth` 兩表，欄位清單綁 open-webui 的 schema 但沒記對應版本；`adduser.sh` 的兩次 INSERT 不在同一個 transaction，第二次失敗會留下半筆。在 `infra/open-webui/versions.conf` 記對應版本，INSERT 包進 transaction
+- open-webui 的四支 helper 直接寫 open-webui 的 `user`、`auth` 兩表，欄位清單綁 open-webui 的 schema 但沒記對應版本；`adduser.sh` 的兩次 INSERT 不在同一個 transaction，第二次失敗會留下半筆。在 `catalog.yaml` 的 open-webui 段記對應版本，INSERT 包進 transaction
 - `infra/open-webui/lsuser.sh` 是四支 helper 裡唯一不檢查 `SQLITE_DB` 的，補上與其他三支相同的檢查
 - 工作樹殘留未追蹤的 `infra/rdp/home/bigred/.ssh/id_rsa.pub` 與 `infra/taroko/home/bigred/.ssh/id_rsa.pub`（`.gitignore` 的 `id_rsa*` 擋下），Dockerfile 整目錄 COPY `.ssh`，這台機器建出的映像含它、乾淨 clone 不含。COPY 改成單檔 `authorized_keys`，或加 `.containerignore`
 - sshd 的 `-e`（日誌導到 stderr 讓 `podman logs` 看得到）只有部分 CMD 帶，查法 `grep -rn 'sshd -D' infra`。統一加或統一拿掉
