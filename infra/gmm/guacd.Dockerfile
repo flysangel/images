@@ -1,14 +1,13 @@
 # gmm guacd 樣板:基於 upstream guacd image,加 recordings 目錄
 
-ARG REGISTRY_PREFIX
-ARG GUACAMOLE_VERSION
-ARG SOURCE_IMAGE=${REGISTRY_PREFIX}/guacamole/guacd:${GUACAMOLE_VERSION}
+# 上游 guacd 由 catalog.yaml 的 upstream GUACAMOLE_GUACD 釘 digest，tag 與 GUACAMOLE_VERSION 同值。
+ARG GUACAMOLE_GUACD_IMAGE
 
 # ---
 # https://github.com/apache/guacamole-server/blob/1.6.0/Dockerfile
 # [hadolint] warning: Always tag the version of an image explicitly (DL3006)
 # hadolint ignore=DL3006
-FROM ${SOURCE_IMAGE} AS main
+FROM ${GUACAMOLE_GUACD_IMAGE} AS main
 
 USER root
 

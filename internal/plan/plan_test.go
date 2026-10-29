@@ -43,6 +43,7 @@ func load(t *testing.T) (*catalog.Catalog, *graph.Graph) {
 	delete(cat.Families, "ubuntu")
 	delete(cat.Families, "fbs")
 	delete(cat.Families, "open-webui")
+	delete(cat.Families, "gmm")
 	g, err := graph.Build(cat, "../..")
 	if err != nil {
 		t.Fatal(err)

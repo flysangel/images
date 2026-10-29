@@ -1,18 +1,15 @@
 # gmm guacamole 樣板:custom logo + ext + home.html;maven multi-stage build
 
-ARG REGISTRY_PREFIX
-ARG ALPINE_SERVICE_VERSION
-ARG UPSTREAM_DOCKER
-ARG DOWNLOADER_IMAGE=${REGISTRY_PREFIX}/alpine:base-${ALPINE_SERVICE_VERSION}
-ARG GUACAMOLE_VERSION
-# TOMCAT_VERSION 與 TOMCAT_JRE 照抄上游，帶預設值，不受 versions.conf 管。
-ARG TOMCAT_VERSION=9
-ARG TOMCAT_JRE=jdk21
+# downloader 疊自家 alpine:base；maven 與 tomcat 是同步進自家 registry 的上游映像，由 catalog.yaml 的 upstream 釘 digest。
+# 換 maven 或 tomcat 的 tag 時，sync/repository/library.yaml 的同步規則要一起改，並先同步過一次。
+ARG ALPINE_BASE_IMAGE
+ARG LIBRARY_MAVEN_IMAGE
+ARG LIBRARY_TOMCAT_IMAGE
 
 # ---
 # [hadolint] warning: Always tag the version of an image explicitly (DL3006)
 # hadolint ignore=DL3006
-FROM ${DOWNLOADER_IMAGE} AS downloader
+FROM ${ALPINE_BASE_IMAGE} AS downloader
 
 ARG GUACAMOLE_VERSION
 
@@ -29,10 +26,7 @@ RUN \
 # ---
 # https://github.com/apache/guacamole-client/blob/1.6.0/Dockerfile
 # 自家加的段落用 ### [Custom] 前綴，其餘與上游同步；升 Guacamole 版本先 diff 上游的 Dockerfile。
-# maven 與下方的 tomcat 走 UPSTREAM_DOCKER 直連上游，sync/repository/ 沒有這兩顆的同步規則。
-# 改成 REGISTRY_PREFIX 之前，要先補同步規則並實際同步過。
-# （這段註解不寫 $ 加大括號的寫法：family-lint.py 連註解也掃，會誤判成 stage 內文用了 ARG。）
-FROM ${UPSTREAM_DOCKER}/library/maven:3-eclipse-temurin-21 AS builder
+FROM ${LIBRARY_MAVEN_IMAGE} AS builder
 
 ARG GUACAMOLE_VERSION
 
@@ -65,7 +59,7 @@ RUN \
 # as well: `--build-arg MAVEN_ARGUMENTS="-P lgpl-extensions -DskipTests=false"`.
 ARG MAVEN_ARGUMENTS="-DskipTests=false"
 
-# 以下帶預設值的 ARG 照抄上游，不受 versions.conf 管；升 mariadb 要對 MYSQL_JDBC_VERSION。
+# 以下帶預設值的 ARG 照抄上游，不受 catalog.yaml 管；升 mariadb 要對 MYSQL_JDBC_VERSION。
 # Versions of JDBC drivers to bundle within image
 ARG MSSQL_JDBC_VERSION=9.4.1
 ARG MYSQL_JDBC_VERSION=8.3.0
@@ -104,7 +98,7 @@ RUN \
 
 # ---
 # For the runtime image, we start with the official Tomcat distribution
-FROM ${UPSTREAM_DOCKER}/library/tomcat:${TOMCAT_VERSION}-${TOMCAT_JRE}
+FROM ${LIBRARY_TOMCAT_IMAGE}
 
 ARG GUACAMOLE_VERSION
 
