@@ -1,0 +1,8 @@
+# gmm family 的煙霧測試規格，由 `imgctl test` 讀取。
+# 三顆都沒有 sshd，檢查寫在 script（路徑相對 repo 根），參數是容器名；設了 script 就只跑它。
+# guacd 與 guacamole 由映像自己的 entrypoint 起服務，wait_port 先等埠 listen。
+# mariadb 要環境變數才起得來，tests.yaml 設不了，所以不設 wait_port，由 smoke-mariadb.sh 帶環境變數自己起。
+services:
+  guacd:     { wait_port: 4822, script: infra/gmm/smoke-guacd.sh }
+  guacamole: { wait_port: 8080, script: infra/gmm/smoke-guacamole.sh }
+  mariadb:   { script: infra/gmm/smoke-mariadb.sh }

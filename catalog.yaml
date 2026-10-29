@@ -10,6 +10,24 @@ upstream:
   MINIO_MC:
     ref: quay.io/flysangel/minio/mc:latest
     digest: sha256:eb4ea9884b77704230e2423e9004d2fa738dc272876b9cc41a297d29443b8780
+  # gmm 用的五顆。GUACAMOLE_* 的 tag 與 families.gmm 的 GUACAMOLE_VERSION、guacd 與 guacamole 的 version 同值，升 Guacamole 要一起改。
+  # LIBRARY_MARIADB 同步的是 latest，digest 就是版本；換 digest 等於換 base。
+  # LIBRARY_MAVEN、LIBRARY_TOMCAT 的 tag 要在 sync/repository/library.yaml 的同步規則內。
+  GUACAMOLE_GUACD:
+    ref: quay.io/flysangel/guacamole/guacd:1.6.0
+    digest: sha256:f39258e35244b6bf79bc6ac4e60eee176aea6f6a5adb13e8c3090e48df8ae515
+  GUACAMOLE_GUACAMOLE:
+    ref: quay.io/flysangel/guacamole/guacamole:1.6.0
+    digest: sha256:50484043eadd8d9562053940c0ed523dbddaf9086c370127b2f4acabb8bddddc
+  LIBRARY_MARIADB:
+    ref: quay.io/flysangel/library/mariadb:latest
+    digest: sha256:0231965d72f758adea93162ed7be119dfd49f14172c5754ed8c9d49b0f17bbc6
+  LIBRARY_MAVEN:
+    ref: quay.io/flysangel/library/maven:3-eclipse-temurin-21
+    digest: sha256:c665c1041e0c6e28bc7d1b41254622c79cf0b3ac63b519be8b789b05b6f69661
+  LIBRARY_TOMCAT:
+    ref: quay.io/flysangel/library/tomcat:9-jdk21
+    digest: sha256:60b0e8ce2b69083c54267a8856c1ce4e26aaae5bc41de4c7475577ca7e943323
 families:
   alpine:
     distro: alpine
@@ -46,3 +64,13 @@ families:
     distro: alpine
     services:
       dbadm: { class: C }
+  gmm:
+    # 三顆的基底不同（guacd 是 alpine，guacamole 的 tomcat 與 mariadb 是 ubuntu），distro 填多數的 ubuntu。
+    # gmm 的乙類只用 command 探測，不用 package，所以 distro 不影響探測。
+    distro: ubuntu
+    values:
+      GUACAMOLE_VERSION: "1.6.0"
+    services:
+      guacd:     { class: A, version: "1.6.0" }
+      guacamole: { class: A, version: "1.6.0" }
+      mariadb:   { class: B, version_from: { command: "mariadbd --version" } }
