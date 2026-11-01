@@ -189,3 +189,30 @@ func TestParentRebuildPropagates(t *testing.T) {
 		}
 	}
 }
+
+// TestOwnsTag 確認前綴比對只收自己 service 的 tag：
+// 去掉 `<service>-` 後必須以版本開頭，`lxqt` 不能收 `lxqt-podman-…`。
+func TestOwnsTag(t *testing.T) {
+	cases := []struct {
+		service, tag string
+		want         bool
+	}{
+		{"lxqt", "lxqt-v1.0.2", true},
+		{"lxqt", "lxqt-podman-v1.0.2", false},
+		{"lxqt", "lxqt-k8sadm-v1.0.2-r2", false},
+		{"lxqt", "lxqt", false},
+		{"lxqt", "lxqt-", false},
+		{"lxqt", "xfce4-v1.0.2", false},
+		{"base", "base-3.21.3", true},
+		{"sshd", "sshd-9.9_p2", true},
+		{"sshd", "sshd-9.9_p2-r2", true},
+		{"sshd", "sshd-9.6p1", true},
+		{"knife", "knife-1.34.0", true},
+		{"k8stools", "k8sadm-v1.0.2", false},
+	}
+	for _, c := range cases {
+		if got := ownsTag(c.service, c.tag); got != c.want {
+			t.Errorf("ownsTag(%q, %q) = %v，要 %v", c.service, c.tag, got, c.want)
+		}
+	}
+}
