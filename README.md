@@ -20,7 +20,7 @@
 | `gitleaks` | push 護欄的機密掃描 |
 | 對外網路 | 建置期抓 provision 的 raw 腳本與各種第三方來源，網址寫在各 family 的 `*.Dockerfile` 與 `versions.conf` |
 | `kubectl` | 只有套用同步 CronJob 與 `tests/test_cronjob.sh` 的部分斷言需要 |
-| `ssh`、`sshpass`、`jq` | testfile 用 `jq` 解 `podman inspect` 取容器 IP，再用 `sshpass` 登入容器。rdp 桌面層的 testfile 另要 `xfreerdp`，沒有就直接 `[FAIL]` |
+| `ssh`、`sshpass`、`jq` | testfile 用 `jq` 解 `podman inspect` 取容器 IP，再用 `sshpass` 登入容器 |
 
 push 護欄是本 repo 自帶的 `.githooks/pre-push`，由帳號層派工 hook 呼叫。沒有帳號層 hook 時，跑 `git config core.hooksPath .githooks`。
 
@@ -38,7 +38,7 @@ cp sync/secret/secret.env.example sync/secret/secret.env   # 填憑證，值一�
 
 ```bash
 task lint                  # 秒級靜態檢查，不需網路
-task try:image -- rdp   # 建 rdp 整條 chain 並跑煙霧測試
+task try:image -- bigdata jdk   # 建 bigdata 的 jdk 並跑煙霧測試
 ```
 
 ### 建映像
@@ -46,27 +46,27 @@ task try:image -- rdp   # 建 rdp 整條 chain 並跑煙霧測試
 `<family>` 是 `infra/` 下有 `versions.conf` 的目錄名，`infra/bin/` 不是 family。只給 family 就依 `CHAIN` 走整條；給 service 就只做那一顆。
 
 ```bash
-bash infra/bin/img.sh __dump_build_args rdp lxqt   # 印該顆會拿到的 --build-arg 值表
-task try:image    -- rdp lxqt                      # 建置 → 煙霧測試，映像保留（主開發迴圈）
-task build:image  -- rdp                           # 只建不測，映像保留
-task smoke:image  -- rdp                           # 對已建映像跑 testfile，不建不刪
-task ci:image     -- rdp                           # 建置 → 煙霧測試 → 清除，全過才清
-task clean:image  -- rdp                           # 移除本機已建映像
+bash infra/bin/img.sh __dump_build_args bigdata jdk   # 印該顆會拿到的 --build-arg 值表
+task try:image    -- bigdata jdk                      # 建置 → 煙霧測試，映像保留（主開發迴圈）
+task build:image  -- bigdata                           # 只建不測，映像保留
+task smoke:image  -- bigdata                           # 對已建映像跑 testfile，不建不刪
+task ci:image     -- bigdata                           # 建置 → 煙霧測試 → 清除，全過才清
+task clean:image  -- bigdata                           # 移除本機已建映像
 ```
 
-- 已遷移到 `imgctl` 的 family（有 `infra/<family>/.imgctl` 的目錄）不能用這幾條指令，`img.sh` 與 `task *:image` 都會失敗。它們的值在 `catalog.yaml`，煙霧測試在 `infra/<family>/tests.yaml`，建置與測試由 `imgctl` 與 GitHub Actions 執行，見 `docs/ARCHITECTURE.md`。範例以仍走 `img.sh` 的 rdp 為準。
+- 已遷移到 `imgctl` 的 family（有 `infra/<family>/.imgctl` 的目錄）不能用這幾條指令，`img.sh` 與 `task *:image` 都會失敗。它們的值在 `catalog.yaml`，煙霧測試在 `infra/<family>/tests.yaml`，建置與測試由 `imgctl` 與 GitHub Actions 執行，見 `docs/ARCHITECTURE.md`。範例以仍走 `img.sh` 的 bigdata 為準。
 - 改了 base 層、要重建整條 chain，用 `task try:image -- <family>`。
 - 給 service 時不會先建它的上游。本機 podman 沒有上游映像時 podman 會去 registry 拉，拉不到就失敗；先 `task pull:image -- <family>` 墊底，或建整條 chain。
-- 單顆要覆寫契約值，`KEY=VAL` 必須搭 service：`task build:image -- rdp lxqt SERVICE_VERSION=v1.0.4`。KEY 只接受大寫字母、數字與底線，小寫會直接報錯。整條 chain 不支援覆寫。
+- 單顆要覆寫契約值，`KEY=VAL` 必須搭 service：`task build:image -- bigdata jdk UBUNTU_SERVICE_VERSION=v1.0.4`。KEY 只接受大寫字母、數字與底線，小寫會直接報錯。整條 chain 不支援覆寫。
 - `taroko` 走 matrix，不接單一 service。`task ci:image -- taroko` 會先建完整個 matrix 才刪，磁碟峰值太大而被擋下；要建一格刪一格，改跑 `bash infra/bin/img.sh ci taroko`。
 - 全 repo 逐一 family 測試是 `bash infra/bin/img.sh test-all`，沒有 task 包裝。
 
 ### 推上 registry
 
 ```bash
-task push:image   -- rdp     # 先 build 讓本機有 tag，push 不建映像
-task pull:image   -- rdp     # 拉 chain 上游墊底
-task check:image  -- rdp     # skopeo inspect 線上查核映像存在
+task push:image   -- bigdata     # 先 build 讓本機有 tag，push 不建映像
+task pull:image   -- bigdata     # 拉 chain 上游墊底
+task check:image  -- bigdata     # skopeo inspect 線上查核映像存在
 ```
 
 憑證由 task 的 `dotenv` 從 `sync/secret/secret.env` 注入，密碼走 `--password-stdin`、不落 argv。直接跑 `bash infra/bin/img.sh` 會繞過 `dotenv`，拿不到憑證。

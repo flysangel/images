@@ -69,7 +69,7 @@ done
 值全部由 `--build-arg` 供給。單獨 build 某個 Dockerfile，光桿 ARG 會展開成空字串：`FROM ${REGISTRY_PREFIX}/…` 變成空的，錯誤訊息是 `Error: determining starting point for build: no FROM statement found`，離根因很遠。另一個後果是 pipefail：podman 預設的 OCI 格式會忽略 `SHELL`，`curl … | bash` 在 curl 失敗時照樣建成映像；`pbuild` 固定帶 `--format docker` 才讓 `SHELL` 生效。**所有建置一律經 `img.sh` 或 `task image:*`。**已遷移的 family 例外：它們改走 `imgctl`，見〈已遷移的 family 改由 imgctl 建置〉。要看某顆會拿到哪些值（已遷移的 family 不適用，改看 `imgctl plan`）：
 
 ```bash
-bash infra/bin/img.sh __dump_build_args rdp lxqt
+bash infra/bin/img.sh __dump_build_args bigdata jdk
 bash infra/bin/img.sh __dump_build_args taroko node KUBERNETES_VERSION=v1.34.0
 ```
 
