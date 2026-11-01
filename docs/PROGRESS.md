@@ -4,7 +4,7 @@
 
 - 標準驗證路徑：`task doctor` → `task lint` → `task test`，定義見 `AGENTS.md`〈完成定義〉。
 - L1、L2 是綠的。`check-taskfile.py` 已實際檢查 Taskfile，不再略過。
-- L3 未驗證：bigdata、landlord、rdp 等 family 還沒實建過，清單見〈待辦〉以「分批跑 `task ci:image`」開頭的那條。
+- L3 未驗證：bigdata、landlord 等 family 還沒實建過，清單見〈待辦〉以「分批跑 `task ci:image`」開頭的那條。
 - 已遷移的 family（看 `infra/*/.imgctl`）改由 `imgctl` 與 GitHub Actions 建置，其他 family 仍用 `img.sh`。過渡期的限制見 `AGENTS.md`〈已遷移的 family 改由 imgctl 建置〉。
 - blocker：registry 上 `bigdata` 到 `landlord` 的映像鏈建不起來，見 `AGENTS.md`〈registry 上的映像鏈可能建不起來〉。
 
@@ -12,7 +12,7 @@
 
 有觸發條件的，句尾括號寫什麼時候做。
 
-- 寫「遷移其餘 family 到 `imgctl`」的計畫：依依賴序遷 taroko、rdp、bigdata、landlord。全部遷完後刪 `img.sh`、各 family 的 `versions.conf`、`config/versions.conf` 與 `.imgctl` 標記，manifest 改由 `imgctl` 產生
+- 寫「遷移其餘 family 到 `imgctl`」的計畫：依依賴序遷 taroko、bigdata、landlord。全部遷完後刪 `img.sh`、各 family 的 `versions.conf`、`config/versions.conf` 與 `.imgctl` 標記，manifest 改由 `imgctl` 產生
 - 把 GitHub Actions run 40312324353 step summary 的 `/dev/kvm` 結果與各顆 `df -h` 抄進 `docs/ARCHITECTURE.md`〈已知的結構性限制〉。重型 family（bigdata、rdp、taroko）用免費 runner 還是自架，要靠這兩個值決定
 - alpine 的輸入雜湊收整個 `infra/alpine/`，改 README 或 `*.testfile` 也會讓 alpine 全部重新發 tag。在 `imgctl` 加排除清單，只收 build context 會用到的檔
 - `infra/alpine/README.md` 開頭的結構樹與「值由 `img.sh` 供給」的敘述過時；`AGENTS.md`〈改了哪類檔要多驗什麼〉的 `config/versions.conf` 列仍寫「沒有程式驗」，現在 `imgctl lint` 會比對 `PROVISION_REF`
@@ -25,8 +25,8 @@
 - `bin/sync-lint.py` 用 Python 的 `re` 驗 tag regex，但 skopeo 用 Go 的 RE2。RE2 不支援 lookahead、lookbehind、反向引用，所以 Python 編得過不代表 skopeo 編得過，這條檢查有系統性的假陰性
 - `tests/test_img.sh` 開頭自檢 `tests/fixtures/stubs/` 的執行位元，沒有就退場。做完刪 `AGENTS.md`〈直接跑 `test_img.sh` 前先確認 stub 有執行位元〉講 stub 的那段
 - `tests/test_img.sh` 補 `build_args()` 缺鍵分支的 case：Dockerfile 宣告了光桿 `ARG`、值表沒有這個鍵時要失敗。`docs/ARCHITECTURE.md`〈設計取捨〉把這條列為 `img.sh` 擋下的約束，現在沒有測試釘住
-- 分批跑 `task ci:image -- <family>` 補驗還沒實建過的 family：bigdata、landlord、rdp，以及 taroko 的 `server`、`docker` 與 `node` 的第二個 stage。taroko 改跑 `bash infra/bin/img.sh ci taroko`。`lint:family` 只驗宣告與值表對得上，驗不到值進建置後的行為。先做第一條，或 bigdata 改用 `task build:image` 保留本機映像，不然 landlord 會撞 `AGENTS.md`〈registry 上的映像鏈可能建不起來〉
-- testfile 只驗檔案存在、不驗權限：`bigdata/dtc-ha` 與 landlord 的 testfile 用 `ls` 加 `grep -q` 判定，`alpine/k8sadm` 與 rdp 的 `*-k8sadm` 只 `test -f`，誤植 `--chmod` 或漏 `--chown` 都抓不到。判定改用 `stat -c '%a %U'`
+- 分批跑 `task ci:image -- <family>` 補驗還沒實建過的 family：bigdata、landlord，以及 taroko 的 `server`、`docker` 與 `node` 的第二個 stage。taroko 改跑 `bash infra/bin/img.sh ci taroko`。`lint:family` 只驗宣告與值表對得上，驗不到值進建置後的行為。先做第一條，或 bigdata 改用 `task build:image` 保留本機映像，不然 landlord 會撞 `AGENTS.md`〈registry 上的映像鏈可能建不起來〉
+- testfile 只驗檔案存在、不驗權限：`bigdata/dtc-ha` 與 landlord 的 testfile 用 `ls` 加 `grep -q` 判定，`alpine/k8sadm` 只 `test -f`，誤植 `--chmod` 或漏 `--chown` 都抓不到。判定改用 `stat -c '%a %U'`
 - `COPY` 的寫法不一致：`--chmod` 三位數與四位數並存（查法 `grep -h '^COPY' infra/*/*.Dockerfile | grep -oE -- '--chmod=[0-9]+' | sort | uniq -c`），與 `--chown` 併用時兩種順序都有。統一成四位數、固定順序，零行為變動
 - `bin/family-lint.py` 加規則：每個 `COPY` 必帶 `--chmod`。當初刻意與 ARG 契約分開落地
 - 確認 GitLab 上 svc_skopeo 的舊 deploy token 已撤銷，並輪換舊 repo 曾 commit 進 `.env` 的 Docker Hub、Red Hat、Quay 三組帳密：叢集已改跑本 repo 的同步 CronJob，但舊 token 與帳密的值都還在舊 repo 的 git 歷史裡，是否撤銷無法從本機確認

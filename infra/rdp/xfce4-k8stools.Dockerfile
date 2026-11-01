@@ -1,7 +1,6 @@
 # rdp xfce4-k8stools 樣板:基於 rdp:xfce4-podman + ubuntu k8stools 套件清單(kubectl/helm/kind/kustomize/...)
-ARG REGISTRY_PREFIX
-ARG SERVICE_VERSION
-FROM ${REGISTRY_PREFIX}/rdp:xfce4-podman-${SERVICE_VERSION}
+ARG RDP_XFCE4_PODMAN_IMAGE
+FROM ${RDP_XFCE4_PODMAN_IMAGE}
 # 釘版穿透:provision 二跳腳本繼承此 ENV(不落回 main)
 ARG PROVISION_REF_IN
 ENV PROVISION_REF=${PROVISION_REF_IN}

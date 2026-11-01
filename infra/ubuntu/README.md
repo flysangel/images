@@ -16,7 +16,7 @@ ubuntu/
 
 `*.Dockerfile` 就是正本,沒有渲染步驟——值由 `img.sh` 讀 `versions.conf` 組成 `--build-arg` 餵給 podman;契約鍵寫成光桿 `ARG`(無預設值)。
 
-本 family 的契約鍵:`BASE`(base 用)、`SERVICE_VERSION`(其餘用)。`SERVICE_VERSION` 同時被 bigdata 與 rdp 以 `UBUNTU_SERVICE_VERSION` 取用,鍵名不可改。
+本 family 的契約鍵:`BASE`(base 用)、`SERVICE_VERSION`(其餘用)。`SERVICE_VERSION` 同時被 bigdata 以 `UBUNTU_SERVICE_VERSION` 取用,鍵名不可改。
 
 ## Build
 

@@ -207,6 +207,12 @@ func runTest(args []string) int {
 				return fail("%v", err)
 			}
 		}
+		// wait_port 等的可能不是 :22（rdp 等 xrdp 的 :3389），sshd 可能還沒起，ssh 登入前再等一次。
+		if spec.SSH != nil && (spec.WaitPort == nil || *spec.WaitPort != 22) {
+			if err := waitPort(ip, 22, 60*time.Second); err != nil {
+				return fail("%v", err)
+			}
+		}
 	}
 	failed := 0
 	for _, step := range smoke.Steps(spec, ip, name) {

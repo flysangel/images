@@ -3,6 +3,7 @@ package plan
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -12,6 +13,9 @@ import (
 	"github.com/flysangel/images/internal/registry"
 	"github.com/flysangel/images/internal/tag"
 )
+
+// versionHead 是 tag 去掉 `<service>-` 後必須符合的開頭：版本號，可帶 v。
+var versionHead = regexp.MustCompile(`^v?\d`)
 
 // HashLabel 是映像上記錄輸入雜湊的 label 鍵。
 const HashLabel = "org.flysangel.input-hash"
@@ -37,7 +41,7 @@ type Item struct {
 }
 
 // Make 算出整張圖的計畫。
-// 判斷：同 service 在 registry 上的既有 tag（前綴 `<service>-`）中，
+// 判斷：同 service 在 registry 上的既有 tag（見 ownsTag）中，
 // 沒有任何一個的 input-hash label 等於算出的雜湊，就重建。不依賴 tag 排序。
 func Make(cat *catalog.Catalog, g *graph.Graph, rc registry.Client, overrides map[string]string, bumpMinor bool) (*Plan, error) {
 	batches, err := g.Batches()
@@ -85,7 +89,7 @@ func makeItem(cat *catalog.Catalog, g *graph.Graph, rc registry.Client, n graph.
 	}
 	var existing []string
 	for _, t := range all {
-		if strings.HasPrefix(t, n.Service+"-") {
+		if ownsTag(n.Service, t) {
 			existing = append(existing, t)
 		}
 	}
@@ -129,6 +133,14 @@ func makeItem(cat *catalog.Catalog, g *graph.Graph, rc registry.Client, n graph.
 		}
 	}
 	return it, nil
+}
+
+// ownsTag 判斷 tag 是不是 service 自己的 tag。
+// 只比前綴不夠：同 family 的 service 名可以互為前綴（rdp 的 lxqt 與 lxqt-podman），
+// 所以去掉 `<service>-` 後，剩下的部分必須以版本開頭。甲、乙、丙三類 tag 與重建的 `-rN` 都符合。
+func ownsTag(service, t string) bool {
+	rest, ok := strings.CutPrefix(t, service+"-")
+	return ok && versionHead.MatchString(rest)
 }
 
 func anyRebuilt(parents []graph.Node, rebuilt map[graph.Node]bool) bool {

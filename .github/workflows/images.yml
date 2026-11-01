@@ -153,6 +153,10 @@ jobs:
           go-version-file: go.mod
       - name: 安裝 sshpass
         run: sudo apt-get update && sudo apt-get install -y sshpass
+      # rdp 桌面層的 smoke 腳本從 host 以 xfreerdp 登入；runner 沒有 X display，用 xvfb-run 給虛擬 display。
+      - name: 安裝 xfreerdp 與 xvfb
+        if: ${{ matrix.service == 'rdp:lxqt' || matrix.service == 'rdp:xfce4' }}
+        run: sudo apt-get install -y freerdp3-x11 xvfb
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
