@@ -74,3 +74,18 @@ families:
       guacd:     { class: A, version: "1.6.0" }
       guacamole: { class: A, version: "1.6.0" }
       mariadb:   { class: B, version_from: { command: "mariadbd --version" } }
+  rdp:
+    # 兩條桌面鏈：<de> → <de>-podman → <de>-k8stools → <de>-k8sadm，<de> 是 lxqt、xfce4。桌面層疊在 ubuntu:sshd 上。
+    # 全部丙類，延續 registry 上既有的 <service>-vX.Y.Z tag。
+    distro: ubuntu
+    aliases:
+      PROVISION_REF_IN: PROVISION_REF
+    services:
+      lxqt:           { class: C }
+      xfce4:          { class: C }
+      lxqt-podman:    { class: C }
+      xfce4-podman:   { class: C }
+      lxqt-k8stools:  { class: C }
+      xfce4-k8stools: { class: C }
+      lxqt-k8sadm:    { class: C }
+      xfce4-k8sadm:   { class: C }

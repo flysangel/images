@@ -1,0 +1,14 @@
+# rdp family 的煙霧測試規格，由 `imgctl test` 讀取。
+# defaults 套給每個 service；service 有寫的欄位蓋過 defaults，寫 null 表示關掉。
+# wait_port 等 xrdp 的 :3389；:22 的 listen 與 bigred 登入由 ssh 檢查。
+# 桌面層要從 host 跑 xfreerdp，改用 script：ssh 設 null，imgctl 才把容器名傳給腳本，:22 與 ssh 登入由腳本自己做。
+defaults: { privileged: true, ssh: { user: bigred, password: bigred }, wait_port: 3389 }
+services:
+  lxqt:           { ssh: null, script: infra/rdp/smoke-lxqt.sh }
+  xfce4:          { ssh: null, script: infra/rdp/smoke-xfce4.sh }
+  lxqt-podman:    { commands: [podman, skopeo, buildah] }
+  xfce4-podman:   { commands: [podman, skopeo, buildah] }
+  lxqt-k8stools:  { commands: [kind, kubectl, helm, kustomize, hadolint] }
+  xfce4-k8stools: { commands: [kind, kubectl, helm, kustomize, hadolint] }
+  lxqt-k8sadm:    { commands: [kind, kubectl, helm, kustomize, hadolint], files: [{ path: /home/bigred/.kube/config.tmp, mode: "600", owner: bigred }] }
+  xfce4-k8sadm:   { commands: [kind, kubectl, helm, kustomize, hadolint], files: [{ path: /home/bigred/.kube/config.tmp, mode: "600", owner: bigred }] }

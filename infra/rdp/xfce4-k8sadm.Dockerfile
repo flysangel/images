@@ -1,8 +1,7 @@
 # rdp xfce4-k8sadm 樣板:基於 rdp:xfce4-k8stools + 注入 kubeconfig template
 # 進入點 bin/k8sadm-entry.sh 合併 kubeconfig 渲染 + 桌面啟動(xrdp/sesman/sshd)
-ARG REGISTRY_PREFIX
-ARG SERVICE_VERSION
-FROM ${REGISTRY_PREFIX}/rdp:xfce4-k8stools-${SERVICE_VERSION}
+ARG RDP_XFCE4_K8STOOLS_IMAGE
+FROM ${RDP_XFCE4_K8STOOLS_IMAGE}
 
 USER bigred
 WORKDIR /home/bigred
