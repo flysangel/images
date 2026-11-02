@@ -69,7 +69,7 @@ done
 值全部由 `--build-arg` 供給。單獨 build 某個 Dockerfile，光桿 ARG 會展開成空字串：`FROM ${REGISTRY_PREFIX}/…` 變成空的，錯誤訊息是 `Error: determining starting point for build: no FROM statement found`，離根因很遠。另一個後果是 pipefail：podman 預設的 OCI 格式會忽略 `SHELL`，`curl … | bash` 在 curl 失敗時照樣建成映像；`pbuild` 固定帶 `--format docker` 才讓 `SHELL` 生效。**所有建置一律經 `img.sh` 或 `task image:*`。**已遷移的 family 例外：它們改走 `imgctl`，見〈已遷移的 family 改由 imgctl 建置〉。要看某顆會拿到哪些值（已遷移的 family 不適用，改看 `imgctl plan`）：
 
 ```bash
-bash infra/bin/img.sh __dump_build_args bigdata jdk
+bash infra/bin/img.sh __dump_build_args landlord tenant-hadoop
 bash infra/bin/img.sh __dump_build_args taroko node KUBERNETES_VERSION=v1.34.0
 ```
 
@@ -92,7 +92,7 @@ CHAIN="base sshd podman"    # 對
 
 ### registry 上的映像鏈可能建不起來
 
-`bigdata` 到 `landlord` 這條鏈在 registry 上有時間錯位：舊的 `bigdata:dtc-ha` 帶著舊版 provision 寫的 `/etc/profile.d/task-env.sh`，撞上新版守衛。對著 registry 現況建 `landlord:tenant-hadoop` 會失敗，錯誤是 dash 的 `Syntax error: "(" unexpected`。這不是本 repo 釘錯版：本機重建 `bigdata:jdk` 與 `bigdata:dtc-ha` 後就能過。根治列在 `docs/PROGRESS.md`。
+`bigdata` 到 `landlord` 這條鏈在 registry 上有時間錯位：舊的 `bigdata:dtc-ha` 帶著舊版 provision 寫的 `/etc/profile.d/task-env.sh`，撞上新版守衛。對著 registry 現況建 `landlord:tenant-hadoop` 會失敗，錯誤是 dash 的 `Syntax error: "(" unexpected`。這不是本 repo 釘錯版：重建 `bigdata:jdk` 與 `bigdata:dtc-ha` 後就能過。bigdata 已遷到 `imgctl`，CI 重建的 `dtc-ha` 是新 tag；landlord 仍讀凍結的 `infra/bigdata/versions.conf`，指向舊 tag，所以照樣失敗。根治列在 `docs/PROGRESS.md`。
 
 ### 換 registry 要改好幾處
 
@@ -124,7 +124,7 @@ grep -rn 'quay.io/flysangel' --include='*.sh' --include='*.yaml' . | grep -v -e 
 
 ### 映像內容物的執行期相依來自 provision，不是本 repo 的 Dockerfile
 
-bigdata 與 landlord 的腳本在執行期用 `ping`、`envsubst`、`inotifywait`、`sshpass`、`jps`，ENTRYPOINT 用 `tini`。除了 `jps` 來自 JDK，其餘都由 provision 的 `base.txt` 裝進 base 層，本 repo 的 Dockerfile 多數不裝。provision 砍掉套件時建置照過、容器起不來，testfile 只有部分顆驗這些指令。
+bigdata 與 landlord 的腳本在執行期用 `ping`、`envsubst`、`inotifywait`、`sshpass`、`jps`，ENTRYPOINT 用 `tini`。除了 `jps` 來自 JDK，其餘都由 provision 的 `base.txt` 裝進 base 層，本 repo 的 Dockerfile 多數不裝。provision 砍掉套件時建置照過、容器起不來，testfile 與 `tests.yaml` 只有部分顆驗這些指令。
 
 ### bigdata 的 conf 樹是 envsubst 範本，缺變數不報錯
 

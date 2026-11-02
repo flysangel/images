@@ -1,7 +1,6 @@
 # bigdata hive 樣板：Hive 4.0.0（archive.apache.org + sha256）+ MariaDB JDBC 2.7.12（Maven Central + sha1）；FROM bigdata:hadoop
-ARG REGISTRY_PREFIX
-ARG SERVICE_VERSION
-FROM ${REGISTRY_PREFIX}/bigdata:hadoop-${SERVICE_VERSION}
+ARG BIGDATA_HADOOP_IMAGE
+FROM ${BIGDATA_HADOOP_IMAGE}
 
 USER root
 

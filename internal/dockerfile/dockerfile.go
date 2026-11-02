@@ -27,7 +27,7 @@ type Stage struct {
 	From     string // FROM 後的映像參照原文
 	Line     int    // FROM 的行號
 	Args     []string
-	UsedVars []string // stage 內（不含 ARG 行與 FROM 行）以 $X 或 ${X} 引用的變數
+	UsedVars []string // stage 內以 $X 或 ${X} 引用的變數：不含 FROM 行與 ARG 名，含 ARG 預設值
 }
 
 // ArgDecl 是一個 ARG 宣告。HasDefault 為 false 的就是光桿 ARG（契約值）。
@@ -76,12 +76,16 @@ func Parse(path string) (*File, error) {
 			cur = len(f.Stages) - 1
 		case "arg":
 			for a := n.Next; a != nil; a = a.Next {
-				name, _, hasDef := strings.Cut(a.Value, "=")
+				name, def, hasDef := strings.Cut(a.Value, "=")
 				f.ArgDecls = append(f.ArgDecls, ArgDecl{Name: name, HasDefault: hasDef, Line: n.StartLine, Stage: cur})
 				if cur < 0 {
 					f.GlobalArgs = append(f.GlobalArgs, name)
 				} else {
 					f.Stages[cur].Args = append(f.Stages[cur].Args, name)
+					// ARG HOME=/opt/${VER} 的預設值也用到 VER；漏宣告 VER 時 HOME 會靜默變成 /opt/。
+					if hasDef {
+						f.Stages[cur].UsedVars = addVars(f.Stages[cur].UsedVars, def)
+					}
 				}
 			}
 		default:

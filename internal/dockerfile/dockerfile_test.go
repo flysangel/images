@@ -54,6 +54,19 @@ func TestParseDecls(t *testing.T) {
 	}
 }
 
+func TestUsedVarsIncludesArgDefault(t *testing.T) {
+	f, err := Parse("testdata/two-stage.Dockerfile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(f.Stages[1].UsedVars, "SEAWEEDFS_URL") || !slices.Contains(f.Stages[1].UsedVars, "VER") {
+		t.Errorf("Stages[1].UsedVars = %v，應含 ARG 預設值引用的 VER", f.Stages[1].UsedVars)
+	}
+	if slices.Contains(f.Stages[1].UsedVars, "LOCAL_HOME") {
+		t.Errorf("Stages[1].UsedVars = %v，ARG 名本身不算引用", f.Stages[1].UsedVars)
+	}
+}
+
 func TestHadolintBeforeArg(t *testing.T) {
 	f, err := Parse("testdata/ignore-before-arg.Dockerfile")
 	if err != nil {

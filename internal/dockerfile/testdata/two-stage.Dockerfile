@@ -8,6 +8,7 @@ FROM ${ALPINE_SSHD_IMAGE}
 USER root
 ARG SEAWEEDFS_URL
 ARG LOCAL_DEFAULT=y
+ARG LOCAL_HOME=/opt/${VER}
 ENV FOO=bar
 COPY --from=mc /usr/bin/mc /tmp/mc
 RUN curl -fsSL "${SEAWEEDFS_URL}" -o weed.tar.gz

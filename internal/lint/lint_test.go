@@ -104,6 +104,25 @@ func TestRule3StageMustRedeclare(t *testing.T) {
 	expect(t, Run(testCatalog(), root), "infra/alpine/sshd.Dockerfile", 3, "BASE")
 }
 
+// ARG 預設值裡的 ${X} 也算用到 X：ARG HOME=/opt/${BASE} 漏宣告 BASE 時，HOME 會靜默變成 /opt/。
+func TestRule3ArgDefaultUsesContractKey(t *testing.T) {
+	root := setup(t, map[string]string{
+		"base.Dockerfile": goodBase,
+		"sshd.Dockerfile": goodSshd + "ARG HOME_DIR=/opt/${BASE}\n",
+	})
+	expect(t, Run(testCatalog(), root), "infra/alpine/sshd.Dockerfile", 2, "BASE")
+}
+
+func TestRule3ArgDefaultDeclared(t *testing.T) {
+	root := setup(t, map[string]string{
+		"base.Dockerfile": goodBase,
+		"sshd.Dockerfile": goodSshd + "ARG BASE\nARG HOME_DIR=/opt/${BASE}\n",
+	})
+	if fs := Run(testCatalog(), root); len(fs) != 0 {
+		t.Errorf("已宣告 BASE 不該有 Finding：%v", fs)
+	}
+}
+
 func TestRule4ArgEnvSameName(t *testing.T) {
 	root := setup(t, map[string]string{
 		"base.Dockerfile": goodBase,

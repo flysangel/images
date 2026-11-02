@@ -1,7 +1,6 @@
-# bigdata hadoop 樣板：Hadoop（版本由 HADOOP_DIR 注入）+ 原生壓縮/加密庫（archive.apache.org 官方 + sha512）；FROM bigdata:jdk
-ARG REGISTRY_PREFIX
-ARG SERVICE_VERSION
-FROM ${REGISTRY_PREFIX}/bigdata:jdk-${SERVICE_VERSION}
+# bigdata hadoop 樣板：Hadoop（版本由 HADOOP_VERSION 注入）+ 原生壓縮/加密庫（archive.apache.org 官方 + sha512）；FROM bigdata:jdk
+ARG BIGDATA_JDK_IMAGE
+FROM ${BIGDATA_JDK_IMAGE}
 
 USER root
 

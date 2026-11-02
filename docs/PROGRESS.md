@@ -4,7 +4,7 @@
 
 - 標準驗證路徑：`task doctor` → `task lint` → `task test`，定義見 `AGENTS.md`〈完成定義〉。
 - L1、L2 是綠的。`check-taskfile.py` 已實際檢查 Taskfile，不再略過。
-- L3 未驗證：bigdata、landlord 等 family 還沒實建過，清單見〈待辦〉以「分批跑 `task ci:image`」開頭的那條。
+- L3 未驗證：landlord 等 family 還沒實建過，清單見〈待辦〉以「分批跑 `task ci:image`」開頭的那條。
 - 已遷移的 family（看 `infra/*/.imgctl`）改由 `imgctl` 與 GitHub Actions 建置，其他 family 仍用 `img.sh`。過渡期的限制見 `AGENTS.md`〈已遷移的 family 改由 imgctl 建置〉。
 - blocker：registry 上 `bigdata` 到 `landlord` 的映像鏈建不起來，見 `AGENTS.md`〈registry 上的映像鏈可能建不起來〉。
 
@@ -12,28 +12,31 @@
 
 有觸發條件的，句尾括號寫什麼時候做。
 
-- 寫「遷移其餘 family 到 `imgctl`」的計畫：依依賴序遷 taroko、bigdata、landlord。全部遷完後刪 `img.sh`、各 family 的 `versions.conf`、`config/versions.conf` 與 `.imgctl` 標記，manifest 改由 `imgctl` 產生
+- 寫「遷移其餘 family 到 `imgctl`」的計畫：依依賴序遷 taroko、landlord。全部遷完後刪 `img.sh`、各 family 的 `versions.conf`、`config/versions.conf` 與 `.imgctl` 標記，manifest 改由 `imgctl` 產生
 - 把 GitHub Actions run 40312324353 step summary 的 `/dev/kvm` 結果與各顆 `df -h` 抄進 `docs/ARCHITECTURE.md`〈已知的結構性限制〉。重型 family（bigdata、rdp、taroko）用免費 runner 還是自架，要靠這兩個值決定
 - alpine 的輸入雜湊收整個 `infra/alpine/`，改 README 或 `*.testfile` 也會讓 alpine 全部重新發 tag。在 `imgctl` 加排除清單，只收 build context 會用到的檔
 - `infra/alpine/README.md` 開頭的結構樹與「值由 `img.sh` 供給」的敘述過時；`AGENTS.md`〈改了哪類檔要多驗什麼〉的 `config/versions.conf` 列仍寫「沒有程式驗」，現在 `imgctl lint` 會比對 `PROVISION_REF`
+- 兩個 CI run 先後 promote 同一個 service 時，後到的 run 因為「tag 已存在、digest 不同」而失敗。promote 腳本遇到第一個錯就停，後面的 service 也推不上去。rdp 遇過一次，run 41265433871 要拒絕後重跑。修法候選：promote 前重查 quay，同 tag 已有相同 input-hash label 就略過
+- landlord 的 `tenant-hadoop` 經凍結的 `infra/bigdata/versions.conf` 取 `BIGDATA_SERVICE_VERSION`，指向 registry 上舊的 `dtc-ha` tag，看不到 `imgctl` 重建的新 tag。landlord 遷到 `imgctl` 時改成 `BIGDATA_DTC_HA_IMAGE`，再刪 `infra/bigdata/versions.conf`
+- `img.sh` 與 `bin/family-lint.py` 的 `ARG_ALIAS` 裡七組 `*_VERSION ← *_DIR` 只給 bigdata 用，bigdata 遷到 `imgctl` 後沒有消費者。刪掉，並改 `docs/ARCHITECTURE.md`〈值表組裝：從 versions.conf 到 --build-arg〉的 `ARG_ALIAS` 段
 - `tests/test_img.sh` 的 `*-all` 略過已遷移 family 那個 case，只斷言被略過的 family，沒斷言其他 family 照跑
 - `infra/alpine/tests.yaml` 的 podman 顆加真實檢查（例如 `podman info`），現在只驗指令存在。改 `tests.yaml` 會讓 alpine 全部重新發 tag，等下一次 alpine 本來就要升版時一起做
 - 用當前釘的 provision 重建 registry 上的映像並發新版：步驟見 README〈升 PROVISION_REF〉。taroko 的 tag 不帶版號，重建會覆蓋 registry 上的既有 tag，動手前先決定做法。這也會修好 `landlord:tenant-hadoop` 對著 registry 建不起來的時間錯位
-- 有 FROM 沒寫 tag、隱含 `latest`：bigdata 的 `hiveDB` 與 landlord 的 `mariadb` 疊 `library/mariadb`，查法 `grep -n 'FROM .*mariadb' infra/*/*.Dockerfile`。同步 CronJob 每晚把上游新版鏡進來，下次建置 base 就靜默換掉。這兩個 family 遷到 `imgctl` 時，比照 gmm 用 `catalog.yaml` 的 upstream `LIBRARY_MARIADB` 釘 digest。等於換 base，整個 family 要升版並重建。同性質的還有 `infra/fbs/base.Dockerfile`：filebrowser 由上游 `get.sh` 的 `master` 分支裝最新版，沒釘版本或 checksum，改成釘 release URL 加 sha256，值放 `catalog.yaml` 的 fbs `values`，比照 alpine 的 `SEAWEEDFS_URL`
+- 有 FROM 沒寫 tag、隱含 `latest`：landlord 的 `mariadb` 疊 `library/mariadb`，查法 `grep -n 'FROM .*mariadb' infra/*/*.Dockerfile`。同步 CronJob 每晚把上游新版鏡進來，下次建置 base 就靜默換掉。landlord 遷到 `imgctl` 時，比照 gmm 與 bigdata 的 `hiveDB` 用 `catalog.yaml` 的 upstream `LIBRARY_MARIADB` 釘 digest。等於換 base，整個 family 要升版並重建。同性質的還有 `infra/fbs/base.Dockerfile`：filebrowser 由上游 `get.sh` 的 `master` 分支裝最新版，沒釘版本或 checksum，改成釘 release URL 加 sha256，值放 `catalog.yaml` 的 fbs `values`，比照 alpine 的 `SEAWEEDFS_URL`
 - `sync/kustomization.yaml` 的 `newTag` 與 `infra/alpine/versions.conf` 的 `SERVICE_VERSION` 是同值兩處，alpine 升版要同步改，沒有人執法（過渡期 alpine 的版本值在 `catalog.yaml`，`versions.conf` 已凍結）。漏改時 CronJob 靜默跑在舊映像上。在 `tests/test_cronjob.sh` 加一條斷言比對兩者
 - `sync/secret/secret.env` 的「值一律裸寫」沒有人執法：加了引號，引號會一起進 Secret，叢集端每晚登入失敗才顯現。在 `tests/test_cronjob.sh` 加一條斷言：產物 Secret 的值解碼後不得以引號開頭
 - `bin/sync-lint.py` 用 Python 的 `re` 驗 tag regex，但 skopeo 用 Go 的 RE2。RE2 不支援 lookahead、lookbehind、反向引用，所以 Python 編得過不代表 skopeo 編得過，這條檢查有系統性的假陰性
 - `tests/test_img.sh` 開頭自檢 `tests/fixtures/stubs/` 的執行位元，沒有就退場。做完刪 `AGENTS.md`〈直接跑 `test_img.sh` 前先確認 stub 有執行位元〉講 stub 的那段
 - `tests/test_img.sh` 補 `build_args()` 缺鍵分支的 case：Dockerfile 宣告了光桿 `ARG`、值表沒有這個鍵時要失敗。`docs/ARCHITECTURE.md`〈設計取捨〉把這條列為 `img.sh` 擋下的約束，現在沒有測試釘住
-- 分批跑 `task ci:image -- <family>` 補驗還沒實建過的 family：bigdata、landlord，以及 taroko 的 `server`、`docker` 與 `node` 的第二個 stage。taroko 改跑 `bash infra/bin/img.sh ci taroko`。`lint:family` 只驗宣告與值表對得上，驗不到值進建置後的行為。先做第一條，或 bigdata 改用 `task build:image` 保留本機映像，不然 landlord 會撞 `AGENTS.md`〈registry 上的映像鏈可能建不起來〉
-- testfile 只驗檔案存在、不驗權限：`bigdata/dtc-ha` 與 landlord 的 testfile 用 `ls` 加 `grep -q` 判定，`alpine/k8sadm` 只 `test -f`，誤植 `--chmod` 或漏 `--chown` 都抓不到。判定改用 `stat -c '%a %U'`
+- 分批跑 `task ci:image -- <family>` 補驗還沒實建過的 family：landlord，以及 taroko 的 `server`、`docker` 與 `node` 的第二個 stage。taroko 改跑 `bash infra/bin/img.sh ci taroko`。`lint:family` 只驗宣告與值表對得上，驗不到值進建置後的行為。landlord 會撞 `AGENTS.md`〈registry 上的映像鏈可能建不起來〉，先做「用當前釘的 provision 重建」那條
+- testfile 只驗檔案存在、不驗權限：`infra/bigdata/smoke-dtc-ha.sh` 與 landlord 的 testfile 用 `ls` 加 `grep -q` 判定，`alpine/k8sadm` 只 `test -f`，誤植 `--chmod` 或漏 `--chown` 都抓不到。判定改用 `stat -c '%a %U'`
 - `COPY` 的寫法不一致：`--chmod` 三位數與四位數並存（查法 `grep -h '^COPY' infra/*/*.Dockerfile | grep -oE -- '--chmod=[0-9]+' | sort | uniq -c`），與 `--chown` 併用時兩種順序都有。統一成四位數、固定順序，零行為變動
 - `bin/family-lint.py` 加規則：每個 `COPY` 必帶 `--chmod`。當初刻意與 ARG 契約分開落地
 - 確認 GitLab 上 svc_skopeo 的舊 deploy token 已撤銷，並輪換舊 repo 曾 commit 進 `.env` 的 Docker Hub、Red Hat、Quay 三組帳密：叢集已改跑本 repo 的同步 CronJob，但舊 token 與帳密的值都還在舊 repo 的 git 歷史裡，是否撤銷無法從本機確認
-- `hbase-ha.Dockerfile` 只換了 hbstart、hbstop，`/bin/hdstart` 仍是從 `bigdata:hadoop` 繼承的單機版（format NameNode、起 SecondaryNameNode、不起 journalnode 與 zkfc），卻搭 HA 的 hadoop conf 且 CMD 先跑它；`hbase-ha.testfile` 驗不到。補 `hdstart-ha` 的 COPY，或把 CMD 改成不跑 hdstart
+- `hbase-ha.Dockerfile` 只換了 hbstart、hbstop，`/bin/hdstart` 仍是從 `bigdata:hadoop` 繼承的單機版（format NameNode、起 SecondaryNameNode、不起 journalnode 與 zkfc），卻搭 HA 的 hadoop conf 且 CMD 先跑它；`smoke-hbase-ha.sh` 驗不到。補 `hdstart-ha` 的 COPY，或把 CMD 改成不跑 hdstart
 - `dtc-ha.Dockerfile` 的 hbase client conf 用單機版 `conf/hbase`，`hbase.rootdir` 釘 `${NAMENODE}:9820`；HA 叢集的 HDFS RPC 是 8020 加 nameservice，對不上。改 COPY `conf/hbase-ha`
 - `conf/zookeeper/conf/zoo.cfg` 的 `dataDir` 寫死 `/home/bigred/zk`，沒用 `${HDUSER}`，`HDUSER` 不是 bigred 時 zk 資料不在 `hconfig` chown 的目錄裡。`bin/zkstart` 用 `grep -o '[0-9]'` 取主機名序號，兩位數會算錯，且每次啟動都追加 `server.N` 到 zoo.cfg
-- hadoop 與 dtc-ha 裝的四個原生庫（zstd、libbz2、libssl、libisal）沒有驗收點。在 `hadoop.testfile` 與 `dtc-ha.testfile` 加 `hadoop checknative -a`
+- hadoop 與 dtc-ha 裝的四個原生庫（zstd、libbz2、libssl、libisal）沒有驗收點。在 `infra/bigdata/smoke-hadoop.sh` 與 `smoke-dtc-ha.sh` 加 `hadoop checknative -a`
 - `tenant-hadoop.testfile` 不驗 `envsubst` 與 `inotifywait`，`tenant.testfile` 有；兩者都是 `log_client` 的執行期相依，由 provision 的 `base.txt` 供給
 - `log_client` 建 token Secret 後立刻用 jsonpath 讀 `ca.crt` 與 `token`，沒有等待迴圈；token controller 慢一步就把空字串寫進 serviceaccount 路徑
 - `infra/landlord/bin/tenant/template/config.yaml` 被 COPY 進映像但 `log_client` 沒引用。刪檔，或補上用途
@@ -48,7 +51,7 @@
 - `bin/sync-lint.py` 不驗同一規則檔內兩顆映像路徑最後一段相同；`skopeo sync` 不帶 `--scoped`，相同就互相覆蓋
 - `infra/taroko/node.Dockerfile` 裝了 tini 但沒設 ENTRYPOINT 或 CMD，沿用 kindest/node 的進入點。決定刪套件或接上
 - hive-ha、hbase-ha 也裝 `ncurses-bin psmisc`，只有 hadoop-ha 的 sshfence 用到 fuser。決定拿掉或留
-- bigdata 六個 Dockerfile 的 `# hadolint ignore=` 沒有成對的警告原文行，不合 `~/.claude/rules/dockerfile.md`〈hadolint 註記〉，查法 `grep -B1 'hadolint ignore' infra/bigdata/*.Dockerfile`
+- bigdata 五個 Dockerfile 的 `# hadolint ignore=` 沒有成對的警告原文行，不合 `~/.claude/rules/dockerfile.md`〈hadolint 註記〉，查法 `grep -B1 'hadolint ignore' infra/bigdata/*.Dockerfile`
 - apt 清理有三種方言：ubuntu 系清 `/var/cache/apt/archives`，taroko 系清 `/var/lib/apt/lists/*`，bigdata 用 `apt` 不清理；`DEBIAN_FRONTEND=noninteractive` 只有兩檔帶。沒有一檔符合 `~/.claude/rules/dockerfile.md`〈RUN 寫法〉的四段寫法。`server.Dockerfile` 的 cri-dockerd 用 `dpkg -i`，缺相依不會自動補，可改 `apt-get install ./cri-dockerd.deb`
 - 補 `docker.io/mintplexlabs/anythingllm` 的同步規則：runbook `apps/ai-stack.md` 的指令引用它，沒有 mirror 會直接拉 Docker Hub，撞匿名拉取的次數上限
 - `img.sh` 驗 `PROVISION_REF` 的值是 `vX.Y.Z`，`config/versions.conf` 與 CLI 覆寫都驗：現在 `task build:image -- alpine sshd PROVISION_REF=main` 會建出 tag 帶版號、內容卻跟著 `main` 走的映像，護欄不掃 CLI

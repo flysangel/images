@@ -1,7 +1,6 @@
 # bigdata jdk 樣板：OpenJDK 8（Eclipse Temurin 8u492，Adoptium 官方）；FROM images ubuntu:sshd（含 bigred/sshd）
-ARG REGISTRY_PREFIX
-ARG UBUNTU_SERVICE_VERSION
-FROM ${REGISTRY_PREFIX}/ubuntu:sshd-${UBUNTU_SERVICE_VERSION}
+ARG UBUNTU_SSHD_IMAGE
+FROM ${UBUNTU_SSHD_IMAGE}
 
 USER root
 
