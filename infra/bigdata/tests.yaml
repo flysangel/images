@@ -1,0 +1,17 @@
+# bigdata family 的煙霧測試規格，由 `imgctl test` 讀取。
+# 每顆都比對版本字串，要在 login shell 裡跑（profile.d 才會載入），tests.yaml 的 commands 做不到，所以全部用 script（路徑相對 repo 根）。
+# ssh、wait_port 為 null：imgctl 以 sleep 起容器、不跑 CMD，參數是容器名；舊 testfile 也是蓋掉 CMD 直接跑指令，不起 daemon、不驗 ssh。
+defaults: { privileged: false, ssh: null, wait_port: null }
+services:
+  jdk:       { script: infra/bigdata/smoke-jdk.sh }
+  zookeeper: { script: infra/bigdata/smoke-zookeeper.sh }
+  kafka:     { script: infra/bigdata/smoke-kafka.sh }
+  hadoop:    { script: infra/bigdata/smoke-hadoop.sh }
+  hbase:     { script: infra/bigdata/smoke-hbase.sh }
+  hive:      { script: infra/bigdata/smoke-hive.sh }
+  spark:     { script: infra/bigdata/smoke-spark.sh }
+  hiveDB:    { script: infra/bigdata/smoke-hiveDB.sh }
+  hadoop-ha: { script: infra/bigdata/smoke-hadoop-ha.sh }
+  hive-ha:   { script: infra/bigdata/smoke-hive-ha.sh }
+  hbase-ha:  { script: infra/bigdata/smoke-hbase-ha.sh }
+  dtc-ha:    { script: infra/bigdata/smoke-dtc-ha.sh }

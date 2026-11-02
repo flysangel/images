@@ -1,7 +1,6 @@
 # bigdata hbase-ha 樣板：HBase 雙 master(HBASE/HBASE_STBY，ZK 選主) + 疊 HA hadoop conf；FROM bigdata:hbase
-ARG REGISTRY_PREFIX
-ARG SERVICE_VERSION
-FROM ${REGISTRY_PREFIX}/bigdata:hbase-${SERVICE_VERSION}
+ARG BIGDATA_HBASE_IMAGE
+FROM ${BIGDATA_HBASE_IMAGE}
 
 USER root
 

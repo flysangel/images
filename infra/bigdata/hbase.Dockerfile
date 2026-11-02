@@ -1,7 +1,6 @@
 # bigdata hbase 樣板：HBase 2.5.8-hadoop3（archive.apache.org 官方 + sha512）；FROM bigdata:hadoop
-ARG REGISTRY_PREFIX
-ARG SERVICE_VERSION
-FROM ${REGISTRY_PREFIX}/bigdata:hadoop-${SERVICE_VERSION}
+ARG BIGDATA_HADOOP_IMAGE
+FROM ${BIGDATA_HADOOP_IMAGE}
 
 USER root
 

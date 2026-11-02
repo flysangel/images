@@ -1,7 +1,6 @@
 # bigdata hive-ha 樣板：疊 HA hadoop client conf（nameservice 解析）+ passwordless ssh；FROM bigdata:hive，繼承 hive bins
-ARG REGISTRY_PREFIX
-ARG SERVICE_VERSION
-FROM ${REGISTRY_PREFIX}/bigdata:hive-${SERVICE_VERSION}
+ARG BIGDATA_HIVE_IMAGE
+FROM ${BIGDATA_HIVE_IMAGE}
 
 USER root
 

@@ -1,7 +1,6 @@
 # bigdata hadoop-ha 樣板：HDFS NameNode HA(QJM/ZKFC/sshfence) + YARN RM HA；FROM bigdata:hadoop（re-layer，無新 tarball）
-ARG REGISTRY_PREFIX
-ARG SERVICE_VERSION
-FROM ${REGISTRY_PREFIX}/bigdata:hadoop-${SERVICE_VERSION}
+ARG BIGDATA_HADOOP_IMAGE
+FROM ${BIGDATA_HADOOP_IMAGE}
 
 USER root
 

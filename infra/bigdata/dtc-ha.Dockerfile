@@ -1,8 +1,7 @@
 # bigdata dtc-ha 樣板（client 物件）：HA bigdata 全套用戶端（hadoop/hbase/hive/kafka/spark/zk + HA nameservice client conf）
 # FROM bigdata:jdk（中性基礎，非伺服端）；平攤組裝全套套件 + conf，繼承 hconfig + COPY hvrc
-ARG REGISTRY_PREFIX
-ARG SERVICE_VERSION
-FROM ${REGISTRY_PREFIX}/bigdata:jdk-${SERVICE_VERSION}
+ARG BIGDATA_JDK_IMAGE
+FROM ${BIGDATA_JDK_IMAGE}
 
 USER root
 
