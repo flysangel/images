@@ -1,40 +1,47 @@
 # `infra/bigdata/` — Hadoop 系譜樣板
 
-Hadoop 生態 12 個 service 依繼承鏈 build,`UPSTREAM=ubuntu`。套件一律官方源 + checksum,版本與網址是 `versions.conf` 的頂層鍵。
+Hadoop 生態 12 個 service，依繼承鏈建置。套件一律取自官方源並驗 checksum。本 family 已遷到 `imgctl`：值在 `catalog.yaml`，煙霧測試在 `tests.yaml`，建置與測試由 `imgctl` 與 GitHub Actions 執行，不用 `img.sh`。
 
 ## 結構
 
 ```text
 bigdata/
-├── versions.conf             # SERVICE_VERSION=v1.0.1 + CHAIN(一維十二顆) + UPSTREAM=ubuntu + 組件 DIR/URL/CHECKSUM 鍵
-├── jdk.Dockerfile            # FROM ubuntu:sshd-${UBUNTU_SERVICE_VERSION}(跨家族進入點) + Temurin JDK8
-├── zookeeper.Dockerfile      # FROM bigdata:jdk
-├── kafka.Dockerfile          # FROM bigdata:jdk
-├── hadoop.Dockerfile         # FROM bigdata:jdk
-├── hbase.Dockerfile          # FROM bigdata:hadoop
-├── hive.Dockerfile           # FROM bigdata:hadoop + MariaDB JDBC
-├── spark.Dockerfile          # FROM bigdata:hadoop
-├── hadoop-ha.Dockerfile      # FROM bigdata:hadoop
-├── hive-ha.Dockerfile        # FROM bigdata:hive
-├── hbase-ha.Dockerfile       # FROM bigdata:hbase
-├── hiveDB.Dockerfile         # FROM library/mariadb + hive metastore schema patch
-├── dtc-ha.Dockerfile         # FROM bigdata:jdk,平鋪重組全部六個組件(不 FROM hadoop)
-├── <service>.testfile        # 對應 smoke test
-├── bin/                      # 18 支容器內服務腳本,COPY 進 /bin
-└── conf/                     # 各組件設定樹,COPY 進 /conf/<版本目錄>,由 hconfig 覆蓋到 /opt
+├── jdk.Dockerfile            # FROM ${UBUNTU_SSHD_IMAGE}，加 Temurin JDK8
+├── zookeeper.Dockerfile      # FROM ${BIGDATA_JDK_IMAGE}
+├── kafka.Dockerfile          # FROM ${BIGDATA_JDK_IMAGE}
+├── hadoop.Dockerfile         # FROM ${BIGDATA_JDK_IMAGE}
+├── hbase.Dockerfile          # FROM ${BIGDATA_HADOOP_IMAGE}
+├── hive.Dockerfile           # FROM ${BIGDATA_HADOOP_IMAGE}，加 MariaDB JDBC
+├── spark.Dockerfile          # FROM ${BIGDATA_HADOOP_IMAGE}
+├── hadoop-ha.Dockerfile      # FROM ${BIGDATA_HADOOP_IMAGE}
+├── hive-ha.Dockerfile        # FROM ${BIGDATA_HIVE_IMAGE}
+├── hbase-ha.Dockerfile       # FROM ${BIGDATA_HBASE_IMAGE}
+├── hiveDB.Dockerfile         # FROM ${LIBRARY_MARIADB_IMAGE}，加 hive metastore schema patch
+├── dtc-ha.Dockerfile         # FROM ${BIGDATA_JDK_IMAGE}，平鋪重組全部六個組件（不 FROM hadoop）
+├── tests.yaml                # 煙霧測試規格
+├── smoke-<service>.sh        # 各顆的煙霧測試，由 tests.yaml 的 script 呼叫
+├── smoke-run.sh              # 各顆共用：容器內以 login shell 跑指令，比對輸出
+├── versions.conf             # 凍結，只供尚未遷移的 landlord 取 BIGDATA_SERVICE_VERSION
+├── bin/                      # 容器內服務腳本，COPY 進 /bin
+├── conf/                     # 各組件設定樹，COPY 進 /conf/<版本目錄>，由 hconfig 覆蓋到 /opt
+├── .imgctl                   # 已遷移標記
+└── README.md
 ```
 
-`CHAIN` 是一維空白分隔的建置序。原本 YAML 時代的六層分組邊界零消費、已取消,同層彼此獨立的資訊改由這裡的圖說明:
+FROM 的 ARG 名由 `imgctl` 依 family 與 service 名產生，例如 `hadoop` 得 `BIGDATA_HADOOP_IMAGE`。各顆的上層見上面的結構樹。同一層的 service 彼此獨立：
 
+```text
+ubuntu:sshd → jdk → [zookeeper, kafka, hadoop, dtc-ha] → [hbase, hive, spark, hadoop-ha] → [hbase-ha, hive-ha]
+上游 mariadb → hiveDB
 ```
-[jdk] → [zookeeper, kafka, hadoop] → [hbase, hive, spark] → [hadoop-ha, hive-ha, hbase-ha] → [hiveDB] → [dtc-ha]
-```
 
-`*.Dockerfile` 就是正本,沒有渲染步驟——值由 `img.sh` 讀 `versions.conf` 組成 `--build-arg` 餵給 podman;契約鍵寫成光桿 `ARG`(無預設值)。
+本 family 的契約鍵是各組件的 `<組件>_VERSION`、`<組件>_URL`、checksum 鍵，以及 `JDBC_*`，值在 `catalog.yaml` 的 bigdata `values`。`<組件>_VERSION` 的值是解壓後的目錄名（例如 `hadoop-3.4.0`），不是單純的版本號：Dockerfile 用它組 `/opt/<目錄名>` 與 `/conf/<目錄名>`，`hconfig` 靠兩者同名把設定對到組件。
 
-本 family 的契約鍵:`SERVICE_VERSION`(同家族 FROM)、`UBUNTU_SERVICE_VERSION`(跨家族,由 `UPSTREAM=ubuntu` 衍生),以及組件鍵 `JAVA_URL` / `JAVA_SHA256`、`HADOOP_*`、`HIVE_*`、`HBASE_*`、`SPARK_*`、`KAFKA_*`、`ZOOKEEPER_*`、`JDBC_*`。
+tag 分三類：
 
-> 組件的版本鍵有一組**別名**:Dockerfile 側寫 `ARG <組件>_VERSION`,值取自 `versions.conf` 的 `<組件>_DIR`(解壓後的目錄名)。對應表在 `infra/bin/img.sh` 的 `ARG_ALIAS` 與 `bin/family-lint.py` 各一份,改一邊要改兩邊。
+- `jdk`、`zookeeper`、`kafka`、`hadoop`、`hbase`、`hive`、`spark` 是甲類，tag 是 `<service>-<組件版本>`，例如 `hadoop-3.4.0`。
+- `hiveDB` 是乙類，tag 由建好的映像內 `mariadbd --version` 決定。
+- `hadoop-ha`、`hive-ha`、`hbase-ha`、`dtc-ha` 是丙類，tag 是 `<service>-vX.Y.Z`，下一版由 `imgctl plan` 算出。
 
 ## bin/ 的角色分派
 
@@ -57,18 +64,28 @@ bigdata/
 
 ## Build
 
+看值表與 tag：
+
 ```bash
-bash infra/bin/img.sh build bigdata                # 整 family,依 chain 順序
-bash infra/bin/img.sh build bigdata hive           # 單一
-bash infra/bin/img.sh __dump_build_args bigdata hadoop   # 印 --build-arg 值表(debug)
-bash infra/bin/img.sh test bigdata jdk             # smoke test(image 必須先 build)
-bash infra/bin/img.sh ci bigdata                   # 磁碟友善:build+test 全部,全 pass 後 rmi 全部
+go run ./cmd/imgctl plan
 ```
 
-整條 chain 有 12 顆且組件龐大,`ci` 的磁碟峰值仍然可觀——建議單顆迭代用 `dev`,整族驗證再用 `ci`。
+上層重建時，疊在它上面的 service 跟著重建。`ubuntu:sshd` 重建時，除了 `hiveDB`，整個 family 都重建。
+
+## 煙霧測試
+
+- 每顆都走 script，`imgctl` 以 sleep 起容器，不跑 CMD，也不驗 ssh。
+- 腳本在容器內用 `bash -lc` 跑指令。login shell 才讀 `/etc/profile.d/<組件>-env.sh`，所以版本字串的比對也驗到 profile.d。
+- 每顆比對的樣式寫在各自的 `smoke-<service>.sh`。
 
 ## 升級
 
-升組件版本:改 `versions.conf` 的組件鍵(`<組件>_DIR` / `_URL` / `_SHA256` 或 `_SHA512` 三者要同時改),再 bump `SERVICE_VERSION`,然後重 build 整條 chain。
+升組件版本：
 
-checksum 一律取自上游官方發佈的校驗檔;上游只發 md5 時,以本地下載計算 sha256 並與上游 md5 交叉驗證後寫入,並在 `versions.conf` 的註解說明來源。
+1. 改 `catalog.yaml` 的 bigdata `values` 裡該組件的 `_VERSION`、`_URL` 與 checksum 鍵。三者要同時改。
+2. 該組件是甲類時，改同一個 service 的 `version`。
+3. 改 `smoke-<service>.sh` 比對的版本字串。疊在它上面、也比對這個版本的 service 一起改，查法 `grep -n '<舊版本>' infra/bigdata/smoke-*.sh`。
+
+checksum 一律取自上游官方發佈的校驗檔。上游只發 md5 時，用本地下載算出 sha256，與上游 md5 交叉驗證後寫入，並在 `catalog.yaml` 的註解寫明來源。
+
+`versions.conf` 凍結，升級時不要改。landlord 遷到 `imgctl` 後就刪掉它。
